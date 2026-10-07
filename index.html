@@ -348,6 +348,91 @@
   }
   .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
+  .field {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .3rem;
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: .3rem;
+    aspect-ratio: 16 / 10;
+  }
+  .field button {
+    appearance: none;
+    border: 0;
+    background: #0F0C09;
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .field button::after {
+    content: "";
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #3A322A;
+    transition: background .15s linear, transform .15s ease;
+  }
+  .field button:hover::after { background: #5C5347; }
+  .field button[aria-pressed="true"] { background: #171210; }
+  .field button[aria-pressed="true"]::after {
+    background: var(--amber);
+    transform: scale(1.5);
+    box-shadow: 0 0 14px 3px rgba(255,176,0,.45);
+  }
+  .field button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .4rem;
+  }
+  .stat {
+    background: var(--ink-2);
+    border-radius: 10px;
+    padding: .7rem .85rem;
+  }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 1.35rem;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .stat .k {
+    display: block;
+    font-size: .72rem;
+    color: #7E7568;
+    margin-top: .25rem;
+    line-height: 1.3;
+  }
+  .statrow { display: flex; gap: .4rem; }
+  .ghost {
+    flex: 1;
+    appearance: none;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--warm);
+    font-family: var(--sans);
+    font-size: .82rem;
+    padding: .6rem .5rem;
+    cursor: pointer;
+  }
+  .ghost:hover { color: var(--warm-hi); border-color: var(--warm); }
+  .ghost:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .modegroup {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: #5C5347;
+    margin: .7rem 0 .1rem;
+  }
+  .modegroup:first-child { margin-top: 0; }
+
   .meter { height: 5px; border-radius: 3px; background: var(--ink-3); overflow: hidden; }
   .meter i { display: block; height: 100%; width: 0%; background: var(--amber); border-radius: 3px; transition: width .06s linear; }
 
@@ -415,6 +500,11 @@
       <li>Any touch, anywhere</li>
       <li>A switch</li>
     </ul>
+    <p class="lede">
+      Nine ways to play sit behind the corner dot, from one light breathing in the dark to
+      a round of call and answer where the board plays, falls silent, and waits for him to
+      take his turn.
+    </p>
     <button class="begin" id="begin">Turn the light on</button>
     <p class="gate-note">
       Best full screen with the room lights low.<br>
@@ -478,9 +568,34 @@
     </div>
 
     <div class="group">
+      <p class="label">Where it sits</p>
+      <div class="field" id="field" role="group" aria-label="Where the light appears on screen"></div>
+      <p class="msg">Most children see better in one part of their field than the rest. Put the light where he turns to look, and in Reach mode put it where his hand can actually get to.</p>
+    </div>
+
+    <div class="group">
       <p class="label">Color</p>
       <div class="swatches" id="swatches"></div>
       <p class="msg">Red and yellow are usually seen first. Change it if one holds him longer.</p>
+    </div>
+
+    <div class="group">
+      <p class="label">Waiting for him</p>
+      <div class="row">
+        <div class="top"><span>How long it waits</span><span class="val" id="vWait"></span></div>
+        <input type="range" id="rWait" min="3" max="20" step="1" aria-label="How long the board waits for a response">
+      </div>
+      <p class="msg">Used by Call and answer. The silence is doing the work, so resist shortening it. Eight seconds feels long to you and is often about right for him.</p>
+    </div>
+
+    <div class="group">
+      <p class="label">This session</p>
+      <div class="stats" id="stats"></div>
+      <div class="statrow">
+        <button class="ghost" id="copyStats">Copy for his team</button>
+        <button class="ghost" id="resetStats">Start over</button>
+      </div>
+      <p class="msg">Counted on this device only, and cleared when you reload. Latency is the gap between the board asking and him answering, which is the number his therapists will care about most.</p>
     </div>
 
     <div class="group">
@@ -548,7 +663,7 @@
       </p>
       <dl>
         <dt>Any key</dt><dd>Answers him, for a plug-in switch</dd>
-        <dt>1&ndash;5</dt><dd>Change what the light does</dd>
+        <dt>1&ndash;9</dt><dd>Change what the light does</dd>
         <dt>M</dt><dd>His voice on or off</dd>
         <dt>C</dt><dd>His movement on or off</dd>
         <dt>F</dt><dd>Full screen</dd>
@@ -566,11 +681,18 @@
   /* ======================= state ======================= */
 
   var MODES = [
-    { id: "beacon", name: "Beacon",    why: "One light breathes in the middle, then rests. The place to start." },
-    { id: "bloom",  name: "Bloom",     why: "Black until he acts. Then a light opens and fades. The clearest cause and effect." },
-    { id: "track",  name: "Follow",    why: "The light drifts side to side and waits at each edge. Builds tracking." },
-    { id: "sweep",  name: "Sweep",     why: "A bar of light crosses the dark. Finds the edges of his visual field." },
-    { id: "calm",   name: "Wind down", why: "Very dim, very slow, sound only. For the end of a session." }
+    { id: "beacon", group: "Looking",  name: "Beacon",         why: "One light breathes, then rests. The place to start." },
+    { id: "track",  group: "Looking",  name: "Follow",         why: "The light drifts side to side and waits at each edge. Builds tracking." },
+    { id: "sweep",  group: "Looking",  name: "Sweep",          why: "A bar of light crosses the dark. Finds the edges of his visual field." },
+    { id: "two",    group: "Looking",  name: "Two lights",     why: "A second light joins the first. Builds tolerance for more than one thing at a time." },
+
+    { id: "bloom",  group: "Doing",    name: "Bloom",          why: "Black until he acts. Then a light opens and fades. The clearest cause and effect." },
+    { id: "reach",  group: "Doing",    name: "Reach and hold", why: "The light parks where he can get to it and waits with no time limit. Any contact is a win." },
+
+    { id: "call",   group: "Talking",  name: "Call and answer", why: "It plays, then goes quiet and waits for him. His sound gets an answer. Turn taking." },
+    { id: "ready",  group: "Talking",  name: "Ready, set, go",  why: "The same three notes every time, then the light appears in the same spot. Teaches him to look before it arrives." },
+
+    { id: "calm",   group: "Rest",     name: "Wind down",      why: "Very dim, very slow, sound only. For the end of a session." }
   ];
 
   var COLORS = ["#FF1A1A", "#FFD400", "#FF8A00", "#FFFFFF", "#2BE02B", "#FF3C9E"];
@@ -579,6 +701,8 @@
     mode: "bloom",
     color: "#FF1A1A",
     size: 28, bright: 85, speed: 70, rest: 3,
+    fcol: 1, frow: 1,
+    wait: 8,
     mic: false, sens: 5,
     cam: false, msens: 5,
     hold: true,
@@ -592,7 +716,7 @@
     var out = {}, k;
     for (k in DEFAULTS) out[k] = DEFAULTS[k];
     try {
-      var raw = localStorage.getItem("beacon.settings.v2");
+      var raw = localStorage.getItem("beacon.settings.v3");
       if (raw) {
         var saved = JSON.parse(raw);
         for (k in DEFAULTS) if (saved[k] !== undefined) out[k] = saved[k];
@@ -607,7 +731,7 @@
   function save() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
-      try { localStorage.setItem("beacon.settings.v2", JSON.stringify(S)); } catch (e) {}
+      try { localStorage.setItem("beacon.settings.v3", JSON.stringify(S)); } catch (e) {}
     }, 300);
   }
 
@@ -758,6 +882,27 @@
     if (S.voice === "bell") bell(f, vel); else kalimba(f, vel);
   }
 
+  function pluck(freq, vel, when) {
+    if (!AC) return;
+    if (S.voice === "bell") bell(freq, vel, when); else kalimba(freq, vel, when);
+  }
+
+  // Three notes rising. Always the same shape, so it reads as "well done" every time.
+  function flourish() {
+    if (!AC) return;
+    var t = AC.currentTime;
+    [3, 5, 7].forEach(function (i, n) { pluck(SCALE[i], 0.75, t + n * 0.14); });
+    step = 5;
+  }
+
+  // The call in turn taking, and the cue in Ready set go. Identical every repetition
+  // on purpose: he can only anticipate something that does not change.
+  function cuePhrase() {
+    if (!AC) return;
+    var t = AC.currentTime;
+    [0, 2, 4].forEach(function (i, n) { pluck(SCALE[i], 0.5, t + n * 0.42); });
+  }
+
   /* --- ambient beds --- */
 
   function buildDrone() {
@@ -811,9 +956,23 @@
 
   /* ======================= microphone ======================= */
 
-  var micStream = null, analyser = null, micBuf = null, micLevel = 0, micGate = 0;
+  var micStream = null, analyser = null, micBuf = null, micGate = 0;
+  var micFloor = 0.004, micExcess = 0, micEnergy = 0, micHot = false;
   var micBar = document.getElementById("micBar");
   var micMsg = document.getElementById("micMsg");
+
+  // A room is never silent. Rather than compare his voice to zero, track what the room
+  // sounds like when nothing is happening and compare against that. Falls fast so a
+  // noisy moment does not stay baked in; rises slowly so his own voice never becomes
+  // the new normal.
+  function trackFloor(floor, level) {
+    return level < floor ? floor + (level - floor) * 0.08
+                         : floor + (level - floor) * 0.0012;
+  }
+
+  // Sensitivity is "how many times louder than the room", not a raw number.
+  // 1 means he has to be about ten times the room. 10 means barely above it.
+  function triggerRatio(sens) { return 11.5 - sens * 0.95; }
 
   function micOn() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -840,7 +999,8 @@
 
   function micOff() {
     if (micStream) { micStream.getTracks().forEach(function (t) { t.stop(); }); micStream = null; }
-    analyser = null; micLevel = 0; micBar.style.width = "0%";
+    analyser = null; micEnergy = 0; micExcess = 0; micHot = false;
+    micFloor = 0.004; micBar.style.width = "0%";
     S.mic = false; syncUI(); save();
     micMsg.className = "msg";
     micMsg.textContent = "Off. The microphone only drives the picture. Nothing is recorded or sent.";
@@ -852,20 +1012,32 @@
     var sum = 0;
     for (var i = 0; i < micBuf.length; i++) sum += micBuf[i] * micBuf[i];
     var rms = Math.sqrt(sum / micBuf.length);
-    var lvl = Math.min(1, rms * (6 + S.sens * 7));
-    micLevel = lvl > micLevel ? lvl : micLevel * 0.90 + lvl * 0.10;
-    micBar.style.width = Math.round(micLevel * 100) + "%";
-    if (micLevel > 0.30 && now - micGate > 850) {
-      micGate = now;
-      answer(W / 2, H / 2, micLevel);
+
+    if (!micHot) micFloor = trackFloor(micFloor, rms);
+    micFloor = Math.max(micFloor, 0.0015);
+
+    var T = triggerRatio(S.sens);
+    micExcess = rms / micFloor;
+
+    // The bar fills exactly as it fires, so what you see is what it does.
+    micBar.style.width = Math.min(100, (micExcess / T) * 100) + "%";
+
+    if (micExcess > T) {
+      micHot = true;
+      if (now - micGate > 800) { micGate = now; answer(fieldX(), fieldY(), 1, "voice"); }
+      micEnergy = Math.max(micEnergy, Math.min(1, micExcess / T));
+    } else if (micExcess < T * 0.55) {
+      micHot = false;
     }
+    if (!micHot) micEnergy *= 0.90;
   }
 
   /* ======================= camera motion ======================= */
 
   var camStream = null, vid = document.getElementById("cam");
   var mc = document.createElement("canvas"), mcx = null;
-  var prevFrame = null, camLevel = 0, camGate = 0, camReady = false;
+  var prevFrame = null, camGate = 0, camReady = false;
+  var camFloor = 0.003, camExcess = 0, camEnergy = 0, camHot = false;
   var camBar = document.getElementById("camBar");
   var camMsg = document.getElementById("camMsg");
 
@@ -895,7 +1067,8 @@
   function camOff() {
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     vid.srcObject = null;
-    camReady = false; prevFrame = null; camLevel = 0; camBar.style.width = "0%";
+    camReady = false; prevFrame = null; camEnergy = 0; camExcess = 0; camHot = false;
+    camFloor = 0.003; camBar.style.width = "0%";
     S.cam = false; syncUI(); save();
     camMsg.className = "msg";
     camMsg.textContent = "Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.";
@@ -912,18 +1085,30 @@
       lum[j] = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
     }
     if (prevFrame) {
-      var sum = 0;
+      // Count pixels that changed a lot, rather than summing how much everything changed.
+      // Auto exposure and flicker nudge the whole frame slightly; a moving arm moves a
+      // cluster of pixels hard. Counting only the hard ones ignores the former.
+      var hits = 0;
       for (var k = 0; k < lum.length; k++) {
-        var diff = Math.abs(lum[k] - prevFrame[k]);
-        if (diff > 0.055) sum += diff;      // threshold kills sensor noise
+        if (Math.abs(lum[k] - prevFrame[k]) > 0.11) hits++;
       }
-      var lvl = Math.min(1, (sum / lum.length) * (14 + S.msens * 26));
-      camLevel = lvl > camLevel ? lvl : camLevel * 0.88 + lvl * 0.12;
-      camBar.style.width = Math.round(camLevel * 100) + "%";
-      if (camLevel > 0.32 && now - camGate > 900) {
-        camGate = now;
-        answer(W / 2, H / 2, camLevel);
+      var frac = hits / lum.length;
+
+      if (!camHot) camFloor = trackFloor(camFloor, frac);
+      camFloor = Math.max(camFloor, 0.0012);
+
+      var T = triggerRatio(S.msens);
+      camExcess = frac / camFloor;
+      camBar.style.width = Math.min(100, (camExcess / T) * 100) + "%";
+
+      if (camExcess > T) {
+        camHot = true;
+        if (now - camGate > 900) { camGate = now; answer(fieldX(), fieldY(), 1, "movement"); }
+        camEnergy = Math.max(camEnergy, Math.min(1, camExcess / T));
+      } else if (camExcess < T * 0.55) {
+        camHot = false;
       }
+      if (!camHot) camEnergy *= 0.90;
     }
     prevFrame = lum;
   }
@@ -936,24 +1121,54 @@
 
   /* ======================= what the light does when he acts ======================= */
 
-  var energy = 0, holding = false, bloom = null, lastAnswer = 0;
+  var energy = 0, holding = false, bloom = null, lastAnswer = 0, rewardAt = -9e9;
 
-  function answer(x, y, strength) {
+  // An open prompt is the board having asked him something and now waiting.
+  // Closing one is the only way a latency gets recorded.
+  var prompt = { at: 0, open: false };
+  function openPrompt() { prompt.at = performance.now(); prompt.open = true; stats.prompts++; }
+  function closePrompt() { prompt.open = false; }
+
+  var stats = { t0: performance.now(), n: 0, prompts: 0, lat: [], src: {}, color: {} };
+
+  function answer(x, y, strength, src) {
     audioStart();
     var now = performance.now();
     if (now - lastAnswer < 110) return;
     lastAnswer = now;
+
     energy = Math.max(energy, strength);
-    play(strength);
+
+    stats.n++;
+    stats.src[src || "touch"] = (stats.src[src || "touch"] || 0) + 1;
+    stats.color[S.color] = (stats.color[S.color] || 0) + 1;
+
+    var answeredAPrompt = false;
+    if (prompt.open) {
+      var lat = now - prompt.at;
+      if (lat < 15000) stats.lat.push(lat);
+      closePrompt();
+      answeredAPrompt = true;
+    }
+
+    // Answering something the board asked earns the full three note reward.
+    // A free hit still gets a note, so nothing he does is ever ignored.
+    if (answeredAPrompt || S.mode === "reach") { flourish(); rewardAt = now; }
+    else play(strength);
+
     if (S.mode === "bloom") bloom = { x: x, y: y, t: now, s: strength };
+    renderStats();
   }
+
+  function fieldX() { return W * [0.20, 0.50, 0.80][S.fcol]; }
+  function fieldY() { return H * [0.26, 0.50, 0.74][S.frow]; }
 
   function inChrome(t) { return t && t.closest && t.closest("#panel, #handle, #gate"); }
 
   window.addEventListener("pointerdown", function (e) {
     if (panelOpen || inChrome(e.target)) return;
     holding = S.hold;
-    answer(e.clientX, e.clientY, 1);
+    answer(e.clientX, e.clientY, 1, "touch");
   }, { passive: true });
 
   window.addEventListener("pointerup", function () { holding = false; });
@@ -967,7 +1182,7 @@
     var now = performance.now();
     if (now - moveGate < 420) return;
     moveGate = now;
-    answer(e.clientX, e.clientY, 0.85);
+    answer(e.clientX, e.clientY, 0.85, "touch");
   }, { passive: true });
 
   window.addEventListener("keydown", function (e) {
@@ -975,7 +1190,7 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (document.activeElement && document.activeElement.closest && document.activeElement.closest("#panel")) return;
 
-    if (e.key >= "1" && e.key <= "5") { setMode(MODES[+e.key - 1].id); return; }
+    if (e.key >= "1" && e.key <= "9" && MODES[+e.key - 1]) { setMode(MODES[+e.key - 1].id); return; }
     var k = e.key.toLowerCase();
     if (k === "m") { S.mic ? micOff() : micOn(); return; }
     if (k === "c") { S.cam ? camOff() : camOn(); return; }
@@ -984,7 +1199,7 @@
     // anything else is a switch press
     if (e.key.length === 1 || e.key === " " || e.key === "Enter" || e.key.indexOf("Arrow") === 0) {
       e.preventDefault();
-      answer(W / 2, H / 2, 1);
+      answer(fieldX(), fieldY(), 1, "switch");
     }
   });
 
@@ -1011,7 +1226,7 @@
     if (holding) energy = Math.max(energy, 0.9);
     else energy *= 0.955;
 
-    var e = Math.max(energy, micLevel * 0.9, camLevel * 0.9);
+    var e = Math.max(energy, micEnergy * 0.9, camEnergy * 0.9);
 
     cx.fillStyle = "#000";
     cx.fillRect(0, 0, W, H);
@@ -1023,10 +1238,19 @@
     var sp = S.speed / 100;
     var t = (now - modeStart) / 1000;
 
+    // A win glows brighter for a moment, in every mode.
+    var rw = Math.max(0, 1 - (now - rewardAt) / 1400);
+    bright = Math.min(1, bright * (1 + rw * 0.5));
+    e = Math.max(e, rw * 0.8);
+
     if (S.mode === "beacon") drawBeacon(t, col, base, bright, sp, e);
     else if (S.mode === "bloom") drawBloom(now, col, base, bright, e);
     else if (S.mode === "track") drawTrack(t, col, base, bright, sp, e);
     else if (S.mode === "sweep") drawSweep(t, col, base, bright, sp, e);
+    else if (S.mode === "two") drawTwo(t, col, base, bright, sp, e);
+    else if (S.mode === "reach") drawReach(now, t, col, base, bright, e);
+    else if (S.mode === "call") drawCall(now, col, base, bright, e);
+    else if (S.mode === "ready") drawReady(now, col, base, bright, e);
     else drawCalm(t, col, base, bright, e);
   }
 
@@ -1050,7 +1274,7 @@
     var env = 0;
     if (p < on) env = Math.pow(Math.max(0, Math.sin(Math.PI * Math.min(1, (p / on) * 1.12))), 0.6);
     if (e > 0.05) env = Math.max(env, e);
-    orb(W / 2, H / 2, base * (0.72 + 0.28 * env + 0.35 * e), col, bright * (0.25 + 0.75 * env));
+    orb(fieldX(), fieldY(), base * (0.72 + 0.28 * env + 0.35 * e), col, bright * (0.25 + 0.75 * env));
   }
 
   function drawBloom(now, col, base, bright, e) {
@@ -1094,6 +1318,96 @@
     cx.fillRect(x - w, 0, w * 2, H);
   }
 
+  // Two targets, the second arriving late and further out. Tolerance for complexity,
+  // and a read on whether he can find a thing that is not the thing he was already on.
+  function drawTwo(t, col, base, bright, sp, e) {
+    var on = 5.0 / Math.max(0.4, sp);
+    var p = t % (on + S.rest);
+    if (p > on) return;
+    var fade = Math.min(1, p / 0.5) * Math.min(1, (on - p) / 0.6);
+    var y = H * 0.5;
+    orb(W * 0.3, y, base * (0.8 + 0.25 * e), col, bright * fade);
+    if (p > on * 0.4) {
+      var f2 = Math.min(1, (p - on * 0.4) / 0.6) * Math.min(1, (on - p) / 0.6);
+      orb(W * 0.7, y, base * (0.8 + 0.25 * e), col, bright * f2);
+    }
+  }
+
+  // Parks where he can physically get to it and waits. No timer, no disappearing.
+  // The only thing that ends it is him.
+  function drawReach(now, t, col, base, bright, e) {
+    var rested = (now - rewardAt) / 1000;
+    if (rested < 1.8) {                       // the win, then a short pause
+      orb(fieldX(), fieldY(), base * (1.3 + 0.4 * (1 - rested / 1.8)), col, bright * (1 - rested / 1.8));
+      return;
+    }
+    if (!prompt.open) openPrompt();
+    var breathe = 0.5 + 0.5 * Math.sin(t * 1.1);
+    orb(fieldX(), fieldY(), base * (0.95 + 0.12 * breathe + 0.3 * e), col, bright * (0.78 + 0.22 * breathe));
+  }
+
+  // Turn taking. It speaks, then it stops and leaves a real silence for him to fill.
+  // The silence is the feature. Do not shorten it because it feels long to an adult.
+  var seq = { name: "", t0: 0 };
+
+  function drawCall(now, col, base, bright, e) {
+    var x = fieldX(), y = fieldY();
+
+    if (seq.name === "" || seq.name === "rest") {
+      if (seq.name === "rest" && (now - seq.t0) / 1000 < Math.max(1.2, S.rest)) return;
+      seq = { name: "call", t0: now };
+      cuePhrase();
+    }
+
+    if (seq.name === "call") {
+      var u = (now - seq.t0) / 1000 / 1.6;
+      if (u >= 1) { seq = { name: "wait", t0: now }; openPrompt(); return; }
+      orb(x, y, base * (0.9 + 0.2 * Math.sin(u * Math.PI)), col, bright * Math.sin(u * Math.PI) * 0.95);
+      return;
+    }
+
+    if (seq.name === "wait") {
+      if (!prompt.open) { seq = { name: "reward", t0: now }; return; }
+      var w = (now - seq.t0) / 1000;
+      if (w > S.wait) { closePrompt(); seq = { name: "rest", t0: now }; return; }
+      // a low ember: the board is still here, still listening, not demanding
+      orb(x, y, base * 0.42, col, bright * 0.16);
+      return;
+    }
+
+    if (seq.name === "reward") {
+      var r = (now - seq.t0) / 1000 / 2.0;
+      if (r >= 1) { seq = { name: "rest", t0: now }; return; }
+      orb(x, y, base * (1.0 + 0.5 * (1 - r)), col, bright * (1 - r * 0.7));
+      return;
+    }
+  }
+
+  // The same cue, the same spot, every time. Anticipatory looking is learned from
+  // repetition that does not vary, so nothing here is randomized.
+  function drawReady(now, col, base, bright, e) {
+    var x = fieldX(), y = fieldY();
+
+    if (seq.name === "" || seq.name === "rsRest") {
+      if (seq.name === "rsRest" && (now - seq.t0) / 1000 < Math.max(1.5, S.rest)) return;
+      seq = { name: "cue", t0: now };
+      cuePhrase();
+      openPrompt();                    // looking before it arrives is the win
+    }
+
+    if (seq.name === "cue") {
+      if ((now - seq.t0) / 1000 > 1.7) { seq = { name: "go", t0: now }; }
+      return;                          // deliberately dark: sound only
+    }
+
+    if (seq.name === "go") {
+      var u = (now - seq.t0) / 1000 / 3.0;
+      if (u >= 1) { closePrompt(); seq = { name: "rsRest", t0: now }; return; }
+      var fade = Math.min(1, u / 0.12) * Math.min(1, (1 - u) / 0.25);
+      orb(x, y, base * (0.95 + 0.3 * e), col, bright * fade);
+    }
+  }
+
   function drawCalm(t, col, base, bright, e) {
     var env = 0.5 + 0.5 * Math.sin(t * 0.32);
     orb(W / 2, H / 2, base * (1.0 + 0.16 * env + 0.2 * e), col, bright * 0.34 * (0.6 + 0.4 * env) + e * 0.12);
@@ -1111,7 +1425,16 @@
   var panelOpen = false;
 
   var modesEl = document.getElementById("modes");
+  var modeBtns = [];
+  var lastGroup = "";
   MODES.forEach(function (m, i) {
+    if (m.group !== lastGroup) {
+      lastGroup = m.group;
+      var h = document.createElement("p");
+      h.className = "modegroup";
+      h.textContent = m.group;
+      modesEl.appendChild(h);
+    }
     var b = document.createElement("button");
     b.className = "mode"; b.type = "button"; b.dataset.mode = m.id;
     b.setAttribute("aria-pressed", "false");
@@ -1120,7 +1443,31 @@
     b.querySelector(".why").textContent = m.why;
     b.addEventListener("click", function () { setMode(m.id); });
     modesEl.appendChild(b);
+    modeBtns.push(b);
   });
+
+  var fieldEl = document.getElementById("field");
+  var fieldBtns = [];
+  var LABELS = ["upper left", "upper centre", "upper right", "left", "centre", "right",
+                "lower left", "lower centre", "lower right"];
+  for (var fr = 0; fr < 3; fr++) {
+    for (var fc = 0; fc < 3; fc++) {
+      (function (row, col) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.dataset.row = row; b.dataset.col = col;
+        b.setAttribute("aria-label", "Put the light " + LABELS[row * 3 + col]);
+        b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () {
+          S.frow = row; S.fcol = col;
+          seq = { name: "", t0: 0 };
+          syncUI(); save();
+        });
+        fieldEl.appendChild(b);
+        fieldBtns.push(b);
+      })(fr, fc);
+    }
+  }
 
   var swEl = document.getElementById("swatches");
   COLORS.forEach(function (hex) {
@@ -1134,7 +1481,12 @@
   });
 
   function setMode(id) {
-    S.mode = id; modeStart = performance.now(); bloom = null;
+    S.mode = id;
+    modeStart = performance.now();
+    bloom = null;
+    seq = { name: "", t0: 0 };
+    closePrompt();
+    rewardAt = -9e9;
     syncUI(); save();
   }
 
@@ -1145,6 +1497,7 @@
     ["rRest", "vRest", "rest", function (v) { return v === 0 ? "none" : v + "s"; }],
     ["rSens", "vSens", "sens", function (v) { return v + "/10"; }],
     ["rMsens", "vMsens", "msens", function (v) { return v + "/10"; }],
+    ["rWait", "vWait", "wait", function (v) { return v + "s"; }],
     ["rVol", "vVol", "vol", function (v) { return v + "%"; }]
   ];
 
@@ -1191,9 +1544,107 @@
     syncUI(); save();
   });
 
+  /* --- session record --- */
+
+  var statsEl = document.getElementById("stats");
+
+  function median(a) {
+    if (!a.length) return null;
+    var s = a.slice().sort(function (x, y) { return x - y; });
+    var m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  function topKey(obj) {
+    var best = null, n = -1;
+    for (var k in obj) if (obj[k] > n) { n = obj[k]; best = k; }
+    return best;
+  }
+
+  function renderStats() {
+    var mins = Math.max(0, (performance.now() - stats.t0) / 60000);
+    var med = median(stats.lat);
+    var rate = stats.prompts ? Math.round(stats.lat.length / stats.prompts * 100) : null;
+    var src = topKey(stats.src);
+
+    var cells = [
+      [String(stats.n), "times he answered"],
+      [med === null ? "–" : (med / 1000).toFixed(1) + "s", "typical wait before he answered"],
+      [rate === null ? "–" : rate + "%", "of the board's prompts he answered"],
+      [mins < 1 ? "<1 min" : Math.round(mins) + " min", "session so far"]
+    ];
+    if (src) cells.push([src, "what he used most"]);
+
+    statsEl.innerHTML = "";
+    cells.forEach(function (c) {
+      var d = document.createElement("div");
+      d.className = "stat";
+      var n = document.createElement("div");
+      n.className = "n"; n.textContent = c[0];
+      var k = document.createElement("span");
+      k.className = "k"; k.textContent = c[1];
+      d.appendChild(n); d.appendChild(k);
+      statsEl.appendChild(d);
+    });
+  }
+
+  function statsText() {
+    var mins = (performance.now() - stats.t0) / 60000;
+    var med = median(stats.lat);
+    var modeName = (MODES.filter(function (m) { return m.id === S.mode; })[0] || {}).name || S.mode;
+    var lines = [
+      "Light board session",
+      "Length: " + (mins < 1 ? "under a minute" : Math.round(mins) + " minutes"),
+      "Mode: " + modeName,
+      "Colour: " + S.color,
+      "Position on screen: " + LABELS[S.frow * 3 + S.fcol],
+      "Responses: " + stats.n,
+      "Prompts offered: " + stats.prompts,
+      "Prompts answered: " + stats.lat.length +
+        (stats.prompts ? " (" + Math.round(stats.lat.length / stats.prompts * 100) + "%)" : ""),
+      "Typical response time: " + (med === null ? "not measured" : (med / 1000).toFixed(1) + " seconds")
+    ];
+    var parts = [];
+    for (var k in stats.src) parts.push(k + " " + stats.src[k]);
+    if (parts.length) lines.push("How he responded: " + parts.join(", "));
+    return lines.join("\n");
+  }
+
+  var copyBtn = document.getElementById("copyStats");
+  copyBtn.addEventListener("click", function () {
+    var text = statsText();
+    var done = function () {
+      copyBtn.textContent = "Copied";
+      setTimeout(function () { copyBtn.textContent = "Copy for his team"; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+
+  function fallbackCopy(text, done) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) { copyBtn.textContent = "Could not copy"; }
+    document.body.removeChild(ta);
+  }
+
+  document.getElementById("resetStats").addEventListener("click", function () {
+    stats = { t0: performance.now(), n: 0, prompts: 0, lat: [], src: {}, color: {} };
+    renderStats();
+  });
+
   function syncUI() {
-    Array.prototype.forEach.call(modesEl.children, function (b) {
+    modeBtns.forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
+    });
+    fieldBtns.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(+b.dataset.row === S.frow && +b.dataset.col === S.fcol));
     });
     Array.prototype.forEach.call(swEl.children, function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.hex === S.color));
@@ -1216,6 +1667,7 @@
 
   function openPanel() {
     panelOpen = true; holding = false;
+    renderStats();
     panel.classList.add("open");
     panel.setAttribute("aria-hidden", "false");
     document.getElementById("close").focus();
@@ -1256,9 +1708,11 @@
       modeStart = performance.now();
     }, 500);
     toggleFull();
+    stats.t0 = performance.now();
   });
 
   syncUI();
+  renderStats();
 })();
 </script>
 
