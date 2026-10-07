@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+</head>
+<body>
+<title>Beacon — a light board</title>
+
+<style>
+  :root {
+    --ink: #0C0A08;
+    --ink-2: #16120E;
+    --ink-3: #221C16;
+    --line: #342B22;
+    --warm: #A39A8C;
+    --warm-hi: #E8E1D6;
+    --amber: #FFB000;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+  }
+
+  #stage { position: fixed; inset: 0; display: block; background: #000; }
+
+  video#cam { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: -10px; }
+
+  /* ---------- Start gate ---------- */
+
+  #gate {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 6vh 7vw;
+    background: radial-gradient(130% 90% at 50% 0%, #1A1410 0%, var(--ink) 55%, #060504 100%);
+    color: var(--warm-hi);
+    font-family: var(--sans);
+    transition: opacity .5s ease;
+    overflow-y: auto;
+  }
+  #gate.out { opacity: 0; pointer-events: none; }
+
+  .gate-inner { max-width: 44rem; width: 100%; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 1.4rem;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(2.4rem, 6.4vw, 4.1rem);
+    line-height: .99;
+    letter-spacing: -.015em;
+    margin: 0 0 1.1rem;
+    text-wrap: balance;
+  }
+  h1 em { font-style: italic; color: var(--amber); }
+
+  .lede {
+    font-size: clamp(1rem, 2.1vw, 1.12rem);
+    line-height: 1.62;
+    color: var(--warm);
+    max-width: 38rem;
+    margin: 0 0 2rem;
+  }
+  .lede strong { color: var(--warm-hi); font-weight: 500; }
+
+  .inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin: 0 0 2.2rem;
+    padding: 0;
+    list-style: none;
+  }
+  .inputs li {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--warm);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .45rem .85rem;
+  }
+
+  .begin {
+    appearance: none;
+    border: 0;
+    background: var(--amber);
+    color: #140E04;
+    font-family: var(--sans);
+    font-size: 1.02rem;
+    font-weight: 600;
+    padding: 1.05rem 2.3rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .begin:hover { transform: translateY(-2px); box-shadow: 0 10px 34px -12px rgba(255,176,0,.7); }
+  .begin:focus-visible { outline: 2px solid var(--warm-hi); outline-offset: 4px; }
+
+  .gate-note {
+    margin: 1.5rem 0 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .05em;
+    color: #6E6558;
+    line-height: 1.8;
+  }
+
+  /* ---------- Corner handle ---------- */
+
+  #handle {
+    position: fixed;
+    right: 0; bottom: 0;
+    z-index: 30;
+    width: 74px; height: 74px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    opacity: .28;
+    transition: opacity .4s ease;
+  }
+  #handle:hover, #handle:focus-visible { opacity: .9; }
+  #handle:focus-visible { outline: 1px solid var(--line); outline-offset: -8px; }
+  #handle .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #4A4036;
+    transition: background .2s linear;
+  }
+  #handle .ring {
+    position: absolute;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--amber);
+    opacity: 0;
+    transform: scale(.4);
+  }
+  #handle.arming .ring {
+    opacity: .85;
+    transform: scale(1);
+    transition: transform .85s cubic-bezier(.3,0,.2,1), opacity .2s linear;
+  }
+  #handle.arming .dot { background: var(--amber); }
+
+  /* ---------- Panel ---------- */
+
+  #panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    z-index: 50;
+    width: min(400px, 100vw);
+    background: var(--ink);
+    border-left: 1px solid var(--line);
+    color: var(--warm-hi);
+    font-family: var(--sans);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(101%);
+    transition: transform .34s cubic-bezier(.32,.72,0,1);
+    box-shadow: -40px 0 80px -40px rgba(0,0,0,.9);
+  }
+  #panel.open { transform: none; }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.4rem 1.5rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+  .panel-head h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 1.5rem;
+    margin: 0;
+  }
+  .close {
+    appearance: none;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--warm);
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    padding: .5rem .85rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .close:hover { color: var(--warm-hi); border-color: var(--warm); }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1.5rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.9rem;
+  }
+
+  .group { display: flex; flex-direction: column; gap: .85rem; }
+
+  .label {
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: #786F62;
+    margin: 0;
+  }
+
+  .modes { display: flex; flex-direction: column; gap: .4rem; }
+  .mode {
+    appearance: none;
+    text-align: left;
+    background: var(--ink-2);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: .78rem .95rem;
+    color: var(--warm);
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .15rem 1rem;
+    transition: background .15s linear, border-color .15s linear;
+  }
+  .mode:hover { background: var(--ink-3); }
+  .mode .name { font-size: .97rem; font-weight: 600; color: var(--warm-hi); }
+  .mode .why { grid-column: 1 / -1; font-size: .8rem; line-height: 1.45; color: #7E7568; }
+  .mode .key { font-family: var(--mono); font-size: .68rem; color: #5C5347; align-self: center; }
+  .mode[aria-pressed="true"] { background: var(--ink-3); border-color: var(--amber); }
+  .mode[aria-pressed="true"] .name { color: var(--amber); }
+  .mode:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .swatches { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .sw {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: inset 0 0 0 2px #000;
+  }
+  .sw[aria-pressed="true"] { border-color: var(--warm-hi); }
+  .sw:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+  .row { display: grid; gap: .4rem; }
+  .row .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: .88rem; color: var(--warm-hi);
+  }
+  .row .val {
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="range"] {
+    appearance: none; width: 100%; height: 26px;
+    background: none; cursor: pointer; margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--ink-3); }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--amber); margin-top: -9px; border: 3px solid var(--ink);
+  }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--ink-3); }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--ink); background: var(--amber);
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; }
+
+  .toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
+    background: var(--ink-2);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: .8rem .95rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    color: var(--warm-hi);
+    font-family: var(--sans);
+    font-size: .95rem;
+  }
+  .toggle:hover { background: var(--ink-3); }
+  .toggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .toggle .sub {
+    display: block; font-size: .78rem; color: #7E7568;
+    line-height: 1.45; margin-top: .2rem; font-weight: 400;
+  }
+  .switch {
+    flex: none; width: 46px; height: 27px; border-radius: 999px;
+    background: var(--ink-3); border: 1px solid var(--line); position: relative;
+    transition: background .18s linear, border-color .18s linear;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 19px; height: 19px; border-radius: 50%; background: #5C5347;
+    transition: transform .18s cubic-bezier(.32,.72,0,1), background .18s linear;
+  }
+  .toggle[aria-pressed="true"] .switch { background: rgba(255,176,0,.22); border-color: var(--amber); }
+  .toggle[aria-pressed="true"] .switch::after { transform: translateX(19px); background: var(--amber); }
+
+  .seg { display: flex; gap: .3rem; background: var(--ink-2); padding: .3rem; border-radius: 11px; }
+  .seg button {
+    flex: 1; appearance: none; border: 0; background: none;
+    color: var(--warm); padding: .58rem .4rem; border-radius: 8px;
+    font-family: var(--sans); font-size: .87rem; cursor: pointer;
+  }
+  .seg button:hover { color: var(--warm-hi); }
+  .seg button[aria-pressed="true"] {
+    background: var(--ink-3); color: var(--amber);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .meter { height: 5px; border-radius: 3px; background: var(--ink-3); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0%; background: var(--amber); border-radius: 3px; transition: width .06s linear; }
+
+  .msg { font-size: .8rem; line-height: 1.5; color: #8C8275; margin: 0; }
+  .msg.warn { color: #D98A3A; }
+  .msg.good { color: #8FBF6A; }
+
+  .static {
+    background: var(--ink-2);
+    border-radius: 10px;
+    padding: .8rem .95rem;
+    font-size: .95rem;
+    color: var(--warm-hi);
+  }
+  .static .sub { display: block; font-size: .78rem; color: #7E7568; line-height: 1.45; margin-top: .2rem; }
+
+  details { border-top: 1px solid var(--line); padding-top: 1.3rem; }
+  summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: #786F62;
+    list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: " +"; }
+  details[open] summary::after { content: " –"; }
+  details p { font-size: .85rem; line-height: 1.62; color: var(--warm); margin: 1rem 0 0; }
+  details dl {
+    margin: 1rem 0 0;
+    display: grid; grid-template-columns: auto 1fr;
+    gap: .5rem .9rem; font-size: .83rem; line-height: 1.4;
+  }
+  details dt { font-family: var(--mono); font-size: .74rem; color: var(--amber); }
+  details dd { margin: 0; color: var(--warm); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #panel, .begin, .switch::after, #handle .ring { transition-duration: .01ms; }
+  }
+</style>
+
+<canvas id="stage"></canvas>
+<video id="cam" muted playsinline></video>
+
+<button id="handle" aria-label="Hold to open caregiver settings">
+  <span class="ring"></span>
+  <span class="dot"></span>
+</button>
+
+<div id="gate">
+  <div class="gate-inner">
+    <p class="eyebrow">A light board for CVI</p>
+    <h1>Black field. One light. <em>He does not have to reach it.</em></h1>
+    <p class="lede">
+      There is nothing on this screen to aim at and nothing to press. The light answers a sound
+      he makes, a movement he makes, a switch, or contact anywhere at all on the glass.
+      <strong>He acts, the light grows, the kalimba answers.</strong> That loop is the whole game,
+      and it does not ask for hands, legs, or words.
+    </p>
+    <ul class="inputs">
+      <li>His voice</li>
+      <li>His movement</li>
+      <li>Any touch, anywhere</li>
+      <li>A switch</li>
+    </ul>
+    <button class="begin" id="begin">Turn the light on</button>
+    <p class="gate-note">
+      Best full screen with the room lights low.<br>
+      Hold the dot in the bottom-right corner for one second to change anything.
+    </p>
+  </div>
+</div>
+
+<aside id="panel" aria-label="Caregiver settings" aria-hidden="true">
+  <div class="panel-head">
+    <h2>Settings</h2>
+    <button class="close" id="close">Done</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="group">
+      <p class="label">How he plays</p>
+
+      <div class="static">Any touch, anywhere
+        <span class="sub">The whole screen is one big switch. A hand, a forearm, a cheek, a knee. Nothing needs to be aimed.</span>
+      </div>
+
+      <button class="toggle" id="tMic" aria-pressed="false">
+        <span>His voice
+          <span class="sub">Every sound he makes grows the light and plucks a note.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
+      <div class="meter"><i id="micBar"></i></div>
+      <p class="msg" id="micMsg">Off. The microphone only drives the picture. Nothing is recorded or sent.</p>
+      <div class="row">
+        <div class="top"><span>How easily his voice reacts</span><span class="val" id="vSens"></span></div>
+        <input type="range" id="rSens" min="1" max="10" step="1" aria-label="Voice sensitivity">
+      </div>
+
+      <button class="toggle" id="tCam" aria-pressed="false">
+        <span>His movement
+          <span class="sub">The camera watches for motion only. A turned head or a lifted arm lights it up.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
+      <div class="meter"><i id="camBar"></i></div>
+      <p class="msg" id="camMsg">Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.</p>
+      <div class="row">
+        <div class="top"><span>How easily his movement reacts</span><span class="val" id="vMsens"></span></div>
+        <input type="range" id="rMsens" min="1" max="10" step="1" aria-label="Movement sensitivity">
+      </div>
+
+      <button class="toggle" id="tHold" aria-pressed="false">
+        <span>Resting counts as holding
+          <span class="sub">If his hand comes to rest on the screen, the light stays up instead of fading.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
+    </div>
+
+    <div class="group">
+      <p class="label">What the light does</p>
+      <div class="modes" id="modes"></div>
+    </div>
+
+    <div class="group">
+      <p class="label">Color</p>
+      <div class="swatches" id="swatches"></div>
+      <p class="msg">Red and yellow are usually seen first. Change it if one holds him longer.</p>
+    </div>
+
+    <div class="group">
+      <p class="label">The light</p>
+      <div class="row">
+        <div class="top"><span>Size</span><span class="val" id="vSize"></span></div>
+        <input type="range" id="rSize" min="10" max="60" step="1" aria-label="Size of the light">
+      </div>
+      <div class="row">
+        <div class="top"><span>Brightness</span><span class="val" id="vBright"></span></div>
+        <input type="range" id="rBright" min="20" max="100" step="1" aria-label="Brightness">
+      </div>
+      <div class="row">
+        <div class="top"><span>Speed</span><span class="val" id="vSpeed"></span></div>
+        <input type="range" id="rSpeed" min="20" max="200" step="5" aria-label="Speed of movement">
+      </div>
+      <div class="row">
+        <div class="top"><span>Rest between</span><span class="val" id="vRest"></span></div>
+        <input type="range" id="rRest" min="0" max="8" step="0.5" aria-label="Rest pause between appearances">
+      </div>
+      <p class="msg">Longer rests give him time to look away, process, and look back. Start around three seconds.</p>
+    </div>
+
+    <div class="group">
+      <p class="label">Sound</p>
+
+      <p class="msg">What answers him</p>
+      <div class="seg" id="segVoice">
+        <button type="button" data-v="kalimba" aria-pressed="true">Kalimba</button>
+        <button type="button" data-v="bell" aria-pressed="false">Soft bell</button>
+      </div>
+
+      <button class="toggle" id="tTones" aria-pressed="true">
+        <span>Notes when he acts
+          <span class="sub">A note each time the light answers him.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
+
+      <p class="msg">Playing underneath</p>
+      <div class="seg" id="segBed">
+        <button type="button" data-b="kalimba" aria-pressed="true">Kalimba</button>
+        <button type="button" data-b="chord" aria-pressed="false">Chord</button>
+        <button type="button" data-b="off" aria-pressed="false">Nothing</button>
+      </div>
+      <p class="msg">The kalimba bed plays a slow phrase every few seconds and then leaves silence, so his own notes still stand out.</p>
+
+      <div class="row">
+        <div class="top"><span>Volume</span><span class="val" id="vVol"></span></div>
+        <input type="range" id="rVol" min="0" max="100" step="1" aria-label="Volume">
+      </div>
+    </div>
+
+    <details>
+      <summary>Why it looks this plain</summary>
+      <p>
+        With cortical visual impairment the eyes usually work; the brain struggles to sort what
+        they send. Clutter, patterned backgrounds, and more than one thing at a time all cost
+        him the image. So this board shows a single saturated target on pure black, moves it
+        slowly, and stops often.
+      </p>
+      <p>
+        Hold a session to a few minutes. Looking is tiring. If he stops tracking, that is the
+        end of the session, not a reason to make the light bigger.
+      </p>
+      <dl>
+        <dt>Any key</dt><dd>Answers him, for a plug-in switch</dd>
+        <dt>1&ndash;5</dt><dd>Change what the light does</dd>
+        <dt>M</dt><dd>His voice on or off</dd>
+        <dt>C</dt><dd>His movement on or off</dd>
+        <dt>F</dt><dd>Full screen</dd>
+        <dt>Esc</dt><dd>Close this panel</dd>
+      </dl>
+    </details>
+
+  </div>
+</aside>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ======================= state ======================= */
+
+  var MODES = [
+    { id: "beacon", name: "Beacon",    why: "One light breathes in the middle, then rests. The place to start." },
+    { id: "bloom",  name: "Bloom",     why: "Black until he acts. Then a light opens and fades. The clearest cause and effect." },
+    { id: "track",  name: "Follow",    why: "The light drifts side to side and waits at each edge. Builds tracking." },
+    { id: "sweep",  name: "Sweep",     why: "A bar of light crosses the dark. Finds the edges of his visual field." },
+    { id: "calm",   name: "Wind down", why: "Very dim, very slow, sound only. For the end of a session." }
+  ];
+
+  var COLORS = ["#FF1A1A", "#FFD400", "#FF8A00", "#FFFFFF", "#2BE02B", "#FF3C9E"];
+
+  var DEFAULTS = {
+    mode: "bloom",
+    color: "#FF1A1A",
+    size: 28, bright: 85, speed: 70, rest: 3,
+    mic: false, sens: 5,
+    cam: false, msens: 5,
+    hold: true,
+    voice: "kalimba", bed: "kalimba",
+    tones: true, vol: 55
+  };
+
+  var S = load();
+
+  function load() {
+    var out = {}, k;
+    for (k in DEFAULTS) out[k] = DEFAULTS[k];
+    try {
+      var raw = localStorage.getItem("beacon.settings.v2");
+      if (raw) {
+        var saved = JSON.parse(raw);
+        for (k in DEFAULTS) if (saved[k] !== undefined) out[k] = saved[k];
+      }
+    } catch (e) {}
+    out.mic = false;   // never auto-arm a device
+    out.cam = false;
+    return out;
+  }
+
+  var saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try { localStorage.setItem("beacon.settings.v2", JSON.stringify(S)); } catch (e) {}
+    }, 300);
+  }
+
+  /* ======================= canvas ======================= */
+
+  var cv = document.getElementById("stage");
+  var cx = cv.getContext("2d");
+  var W = 0, H = 0;
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function rgb(hex) {
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+  }
+  function rgba(c, a) {
+    return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + Math.max(0, Math.min(1, a)) + ")";
+  }
+
+  /* ======================= audio ======================= */
+
+  var AC = null, master = null, bus = null, verb = null;
+  var droneGain = null, droneBuilt = false;
+
+  // C major pentatonic across two octaves — nothing he triggers can sound wrong.
+  var SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
+  var step = 3;
+
+  function nextNote() {
+    // wander by step rather than jump, so repeated triggers sound like a phrase
+    step += (Math.random() < 0.5 ? -1 : 1) * (1 + (Math.random() < 0.25 ? 1 : 0));
+    if (step < 0) step = 1;
+    if (step > SCALE.length - 1) step = SCALE.length - 2;
+    return SCALE[step];
+  }
+
+  function audioStart() {
+    if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+    var Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return;
+    AC = new Ctor();
+
+    master = AC.createGain();
+    master.gain.value = S.vol / 100 * 0.6;
+    master.connect(AC.destination);
+
+    // a short plate-ish tail so the tines ring in a room rather than a box
+    verb = AC.createConvolver();
+    verb.buffer = makeIR(2.2, 2.6);
+    var verbGain = AC.createGain();
+    verbGain.gain.value = 0.3;
+    verb.connect(verbGain);
+    verbGain.connect(master);
+
+    bus = AC.createGain();
+    bus.gain.value = 1;
+    bus.connect(master);
+    bus.connect(verb);
+
+    buildDrone();
+    applyBed();
+  }
+
+  function makeIR(dur, decay) {
+    var len = Math.floor(AC.sampleRate * dur);
+    var buf = AC.createBuffer(2, len, AC.sampleRate);
+    for (var ch = 0; ch < 2; ch++) {
+      var d = buf.getChannelData(ch);
+      for (var i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return buf;
+  }
+
+  /* --- kalimba: fast metallic attack, inharmonic upper tines, long thin decay --- */
+  function kalimba(freq, vel, when) {
+    var t = when || AC.currentTime;
+    var v = 0.5 + vel * 0.5;
+
+    var out = AC.createGain();
+    out.gain.value = 0.42 * v;
+    out.connect(bus);
+
+    // tine partials. The 6.1x is what makes it read as metal rather than marimba.
+    var parts = [[1, 1.00, 2.6], [2.01, 0.42, 1.5], [3.02, 0.20, 0.9], [6.10, 0.09, 0.42]];
+    parts.forEach(function (p) {
+      var f = freq * p[0];
+      if (f > 11000) return;
+      var o = AC.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(f * 1.013, t);           // pitch settles down as the tine releases
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.06);
+
+      var g = AC.createGain();
+      var peak = p[1] * v;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + p[2]);
+
+      o.connect(g); g.connect(out);
+      o.start(t); o.stop(t + p[2] + 0.05);
+    });
+
+    // thumbnail against the tine
+    var n = AC.createBufferSource();
+    var nb = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.05), AC.sampleRate);
+    var nd = nb.getChannelData(0);
+    for (var i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nd.length, 5);
+    n.buffer = nb;
+    var bp = AC.createBiquadFilter();
+    bp.type = "bandpass"; bp.frequency.value = Math.min(5200, freq * 7); bp.Q.value = 1.1;
+    var ng = AC.createGain(); ng.gain.value = 0.22 * v;
+    n.connect(bp); bp.connect(ng); ng.connect(out);
+    n.start(t);
+  }
+
+  /* --- soft bell alternative --- */
+  function bell(freq, vel, when) {
+    var t = when || AC.currentTime;
+    var v = 0.5 + vel * 0.5;
+    var g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.17 * v, t + 0.22);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+    g.connect(bus);
+    [[1, 1, "triangle"], [2, 0.3, "sine"]].forEach(function (p) {
+      var o = AC.createOscillator();
+      o.type = p[2];
+      o.frequency.value = freq * p[0];
+      o.detune.value = p[0] === 1 ? -6 : 6;
+      var og = AC.createGain(); og.gain.value = p[1];
+      o.connect(og); og.connect(g);
+      o.start(t); o.stop(t + 3);
+    });
+  }
+
+  function play(vel) {
+    if (!AC || !S.tones) return;
+    var f = nextNote();
+    if (S.voice === "bell") bell(f, vel); else kalimba(f, vel);
+  }
+
+  /* --- ambient beds --- */
+
+  function buildDrone() {
+    if (droneBuilt) return;
+    droneBuilt = true;
+    droneGain = AC.createGain();
+    droneGain.gain.value = 0;
+    var dlp = AC.createBiquadFilter();
+    dlp.type = "lowpass"; dlp.frequency.value = 900;
+    droneGain.connect(dlp); dlp.connect(master);
+
+    [130.81, 196.00, 329.63].forEach(function (f, i) {
+      var o = AC.createOscillator();
+      o.type = i === 2 ? "sine" : "triangle";
+      o.frequency.value = f;
+      o.detune.value = i === 1 ? 4 : -3;
+      var g = AC.createGain();
+      g.gain.value = i === 2 ? 0.10 : 0.20;
+      var lfo = AC.createOscillator();
+      lfo.frequency.value = 0.045 + i * 0.017;
+      var amt = AC.createGain(); amt.gain.value = 0.05;
+      lfo.connect(amt); amt.connect(g.gain);
+      o.connect(g); g.connect(droneGain);
+      o.start(); lfo.start();
+    });
+  }
+
+  function applyBed() {
+    if (!AC) return;
+    var t = AC.currentTime;
+    var on = S.bed === "chord";
+    droneGain.gain.cancelScheduledValues(t);
+    droneGain.gain.setValueAtTime(droneGain.gain.value, t);
+    droneGain.gain.linearRampToValueAtTime(on ? 0.26 : 0, t + (on ? 3.5 : 2.0));
+  }
+
+  // Slow kalimba phrases with real silence between them, so his own notes stay in front.
+  var nextPhrase = 0;
+  function bedTick(now) {
+    if (!AC || S.bed !== "kalimba") return;
+    if (now < nextPhrase) return;
+    nextPhrase = now + 5200 + Math.random() * 4200;
+    var t = AC.currentTime + 0.1;
+    var start = 2 + Math.floor(Math.random() * 4);
+    var n = 2 + Math.floor(Math.random() * 2);
+    for (var i = 0; i < n; i++) {
+      var idx = Math.max(0, Math.min(SCALE.length - 1, start - i * (1 + (i === 1 ? 1 : 0))));
+      kalimba(SCALE[idx], 0.12, t + i * (0.42 + Math.random() * 0.2));
+    }
+  }
+
+  /* ======================= microphone ======================= */
+
+  var micStream = null, analyser = null, micBuf = null, micLevel = 0, micGate = 0;
+  var micBar = document.getElementById("micBar");
+  var micMsg = document.getElementById("micMsg");
+
+  function micOn() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      deviceFail(micMsg, "mic"); S.mic = false; syncUI(); return;
+    }
+    audioStart();
+    navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    }).then(function (stream) {
+      micStream = stream;
+      var src = AC.createMediaStreamSource(stream);
+      analyser = AC.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.6;
+      micBuf = new Float32Array(analyser.fftSize);
+      src.connect(analyser);          // analyser only, never routed to the speakers
+      S.mic = true; syncUI(); save();
+      micMsg.className = "msg good";
+      micMsg.textContent = "Listening. Nothing is recorded or sent anywhere.";
+    }).catch(function () {
+      S.mic = false; syncUI(); deviceFail(micMsg, "mic");
+    });
+  }
+
+  function micOff() {
+    if (micStream) { micStream.getTracks().forEach(function (t) { t.stop(); }); micStream = null; }
+    analyser = null; micLevel = 0; micBar.style.width = "0%";
+    S.mic = false; syncUI(); save();
+    micMsg.className = "msg";
+    micMsg.textContent = "Off. The microphone only drives the picture. Nothing is recorded or sent.";
+  }
+
+  function readMic(now) {
+    if (!analyser) return;
+    analyser.getFloatTimeDomainData(micBuf);
+    var sum = 0;
+    for (var i = 0; i < micBuf.length; i++) sum += micBuf[i] * micBuf[i];
+    var rms = Math.sqrt(sum / micBuf.length);
+    var lvl = Math.min(1, rms * (6 + S.sens * 7));
+    micLevel = lvl > micLevel ? lvl : micLevel * 0.90 + lvl * 0.10;
+    micBar.style.width = Math.round(micLevel * 100) + "%";
+    if (micLevel > 0.30 && now - micGate > 850) {
+      micGate = now;
+      answer(W / 2, H / 2, micLevel);
+    }
+  }
+
+  /* ======================= camera motion ======================= */
+
+  var camStream = null, vid = document.getElementById("cam");
+  var mc = document.createElement("canvas"), mcx = null;
+  var prevFrame = null, camLevel = 0, camGate = 0, camReady = false;
+  var camBar = document.getElementById("camBar");
+  var camMsg = document.getElementById("camMsg");
+
+  mc.width = 64; mc.height = 48;
+  mcx = mc.getContext("2d", { willReadFrequently: true });
+
+  function camOn() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      deviceFail(camMsg, "camera"); S.cam = false; syncUI(); return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: "user" }, audio: false
+    }).then(function (stream) {
+      camStream = stream;
+      vid.srcObject = stream;
+      var p = vid.play();
+      if (p && p.catch) p.catch(function () {});
+      camReady = true; prevFrame = null;
+      S.cam = true; syncUI(); save();
+      camMsg.className = "msg good";
+      camMsg.textContent = "Watching for movement. No picture is saved, shown, or sent.";
+    }).catch(function () {
+      S.cam = false; syncUI(); deviceFail(camMsg, "camera");
+    });
+  }
+
+  function camOff() {
+    if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+    vid.srcObject = null;
+    camReady = false; prevFrame = null; camLevel = 0; camBar.style.width = "0%";
+    S.cam = false; syncUI(); save();
+    camMsg.className = "msg";
+    camMsg.textContent = "Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.";
+  }
+
+  var camFrame = 0;
+  function readCam(now) {
+    if (!camReady || vid.readyState < 2) return;
+    if ((camFrame++ % 3) !== 0) return;     // ~20fps is plenty for motion
+    mcx.drawImage(vid, 0, 0, 64, 48);
+    var d = mcx.getImageData(0, 0, 64, 48).data;
+    var lum = new Float32Array(64 * 48);
+    for (var i = 0, j = 0; i < d.length; i += 4, j++) {
+      lum[j] = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+    }
+    if (prevFrame) {
+      var sum = 0;
+      for (var k = 0; k < lum.length; k++) {
+        var diff = Math.abs(lum[k] - prevFrame[k]);
+        if (diff > 0.055) sum += diff;      // threshold kills sensor noise
+      }
+      var lvl = Math.min(1, (sum / lum.length) * (14 + S.msens * 26));
+      camLevel = lvl > camLevel ? lvl : camLevel * 0.88 + lvl * 0.12;
+      camBar.style.width = Math.round(camLevel * 100) + "%";
+      if (camLevel > 0.32 && now - camGate > 900) {
+        camGate = now;
+        answer(W / 2, H / 2, camLevel);
+      }
+    }
+    prevFrame = lum;
+  }
+
+  function deviceFail(el, what) {
+    el.className = "msg warn";
+    el.textContent = "This page cannot reach the " + what + " here. Open it in its own browser tab, " +
+      "or run the local copy, then allow " + what + " access when the browser asks.";
+  }
+
+  /* ======================= what the light does when he acts ======================= */
+
+  var energy = 0, holding = false, bloom = null, lastAnswer = 0;
+
+  function answer(x, y, strength) {
+    audioStart();
+    var now = performance.now();
+    if (now - lastAnswer < 110) return;
+    lastAnswer = now;
+    energy = Math.max(energy, strength);
+    play(strength);
+    if (S.mode === "bloom") bloom = { x: x, y: y, t: now, s: strength };
+  }
+
+  function inChrome(t) { return t && t.closest && t.closest("#panel, #handle, #gate"); }
+
+  window.addEventListener("pointerdown", function (e) {
+    if (panelOpen || inChrome(e.target)) return;
+    holding = S.hold;
+    answer(e.clientX, e.clientY, 1);
+  }, { passive: true });
+
+  window.addEventListener("pointerup", function () { holding = false; });
+  window.addEventListener("pointercancel", function () { holding = false; });
+
+  // A dragged or sliding hand keeps answering, so a sweep across the glass is not one single event.
+  var moveGate = 0;
+  window.addEventListener("pointermove", function (e) {
+    if (panelOpen || !e.buttons && !holding) return;
+    if (inChrome(e.target)) return;
+    var now = performance.now();
+    if (now - moveGate < 420) return;
+    moveGate = now;
+    answer(e.clientX, e.clientY, 0.85);
+  }, { passive: true });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closePanel(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (document.activeElement && document.activeElement.closest && document.activeElement.closest("#panel")) return;
+
+    if (e.key >= "1" && e.key <= "5") { setMode(MODES[+e.key - 1].id); return; }
+    var k = e.key.toLowerCase();
+    if (k === "m") { S.mic ? micOff() : micOn(); return; }
+    if (k === "c") { S.cam ? camOff() : camOn(); return; }
+    if (k === "f") { toggleFull(); return; }
+
+    // anything else is a switch press
+    if (e.key.length === 1 || e.key === " " || e.key === "Enter" || e.key.indexOf("Arrow") === 0) {
+      e.preventDefault();
+      answer(W / 2, H / 2, 1);
+    }
+  });
+
+  function toggleFull() {
+    var el = document.documentElement;
+    if (!document.fullscreenElement) {
+      if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen().catch(function () {});
+    }
+  }
+
+  /* ======================= render ======================= */
+
+  var gateUp = true, modeStart = performance.now();
+
+  function draw(now) {
+    requestAnimationFrame(draw);
+
+    if (S.mic) readMic(now);
+    if (S.cam) readCam(now);
+    bedTick(now);
+
+    if (holding) energy = Math.max(energy, 0.9);
+    else energy *= 0.955;
+
+    var e = Math.max(energy, micLevel * 0.9, camLevel * 0.9);
+
+    cx.fillStyle = "#000";
+    cx.fillRect(0, 0, W, H);
+    if (gateUp) return;
+
+    var col = rgb(S.color);
+    var base = Math.min(W, H) * (S.size / 100);
+    var bright = S.bright / 100;
+    var sp = S.speed / 100;
+    var t = (now - modeStart) / 1000;
+
+    if (S.mode === "beacon") drawBeacon(t, col, base, bright, sp, e);
+    else if (S.mode === "bloom") drawBloom(now, col, base, bright, e);
+    else if (S.mode === "track") drawTrack(t, col, base, bright, sp, e);
+    else if (S.mode === "sweep") drawSweep(t, col, base, bright, sp, e);
+    else drawCalm(t, col, base, bright, e);
+  }
+
+  // Solid core for a defined edge, halo for the glow. CVI needs form, not only light.
+  function orb(x, y, r, col, a) {
+    if (r <= 0 || a <= 0) return;
+    var g = cx.createRadialGradient(x, y, r * 0.3, x, y, r * 1.9);
+    g.addColorStop(0, rgba(col, a * 0.55));
+    g.addColorStop(0.45, rgba(col, a * 0.18));
+    g.addColorStop(1, rgba(col, 0));
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(x, y, r * 1.9, 0, Math.PI * 2); cx.fill();
+
+    cx.fillStyle = rgba(col, a);
+    cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.fill();
+  }
+
+  function drawBeacon(t, col, base, bright, sp, e) {
+    var on = 4.5 / Math.max(0.4, sp);
+    var p = t % (on + S.rest);
+    var env = 0;
+    if (p < on) env = Math.pow(Math.max(0, Math.sin(Math.PI * Math.min(1, (p / on) * 1.12))), 0.6);
+    if (e > 0.05) env = Math.max(env, e);
+    orb(W / 2, H / 2, base * (0.72 + 0.28 * env + 0.35 * e), col, bright * (0.25 + 0.75 * env));
+  }
+
+  function drawBloom(now, col, base, bright, e) {
+    if (!bloom) return;
+    var life = 2.4 + S.rest * 0.3;
+    var age = (now - bloom.t) / 1000;
+    if (age > life) { bloom = null; return; }
+    var u = age / life;
+    var grow = 1 - Math.pow(1 - Math.min(1, u * 2.2), 3);
+    var fade = u < 0.12 ? u / 0.12 : Math.pow(1 - (u - 0.12) / 0.88, 1.6);
+    var r = base * (0.35 + 1.05 * grow) * (0.7 + 0.3 * bloom.s);
+    orb(bloom.x, bloom.y, r, col, bright * fade * (0.6 + 0.4 * bloom.s) + e * 0.1);
+  }
+
+  function drawTrack(t, col, base, bright, sp, e) {
+    var travel = 5.0 / Math.max(0.4, sp);
+    var dwell = Math.max(0.6, S.rest);
+    var leg = travel + dwell;
+    var p = t % (leg * 2), x;
+    if (p < travel) x = lerp(W * 0.14, W * 0.86, ease(p / travel));
+    else if (p < leg) x = W * 0.86;
+    else if (p < leg + travel) x = lerp(W * 0.86, W * 0.14, ease((p - leg) / travel));
+    else x = W * 0.14;
+    orb(x, H / 2, base * (0.8 + 0.3 * e), col, bright * (0.85 + 0.15 * e));
+  }
+
+  function drawSweep(t, col, base, bright, sp, e) {
+    var travel = 6.0 / Math.max(0.4, sp);
+    var p = t % (travel + S.rest);
+    if (p > travel) return;
+    var x = lerp(-base, W + base, p / travel);
+    var w = base * (1.1 + 0.5 * e);
+    var a = bright * (0.9 + 0.1 * e);
+    var g = cx.createLinearGradient(x - w, 0, x + w, 0);
+    g.addColorStop(0, rgba(col, 0));
+    g.addColorStop(0.42, rgba(col, a * 0.35));
+    g.addColorStop(0.5, rgba(col, a));
+    g.addColorStop(0.58, rgba(col, a * 0.35));
+    g.addColorStop(1, rgba(col, 0));
+    cx.fillStyle = g;
+    cx.fillRect(x - w, 0, w * 2, H);
+  }
+
+  function drawCalm(t, col, base, bright, e) {
+    var env = 0.5 + 0.5 * Math.sin(t * 0.32);
+    orb(W / 2, H / 2, base * (1.0 + 0.16 * env + 0.2 * e), col, bright * 0.34 * (0.6 + 0.4 * env) + e * 0.12);
+  }
+
+  function lerp(a, b, u) { return a + (b - a) * u; }
+  function ease(u) { return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
+
+  requestAnimationFrame(draw);
+
+  /* ======================= panel UI ======================= */
+
+  var panel = document.getElementById("panel");
+  var handle = document.getElementById("handle");
+  var panelOpen = false;
+
+  var modesEl = document.getElementById("modes");
+  MODES.forEach(function (m, i) {
+    var b = document.createElement("button");
+    b.className = "mode"; b.type = "button"; b.dataset.mode = m.id;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<span class="name"></span><span class="key">' + (i + 1) + '</span><span class="why"></span>';
+    b.querySelector(".name").textContent = m.name;
+    b.querySelector(".why").textContent = m.why;
+    b.addEventListener("click", function () { setMode(m.id); });
+    modesEl.appendChild(b);
+  });
+
+  var swEl = document.getElementById("swatches");
+  COLORS.forEach(function (hex) {
+    var b = document.createElement("button");
+    b.className = "sw"; b.type = "button"; b.dataset.hex = hex;
+    b.style.background = hex;
+    b.setAttribute("aria-label", "Use " + hex);
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () { S.color = hex; syncUI(); save(); });
+    swEl.appendChild(b);
+  });
+
+  function setMode(id) {
+    S.mode = id; modeStart = performance.now(); bloom = null;
+    syncUI(); save();
+  }
+
+  var sliders = [
+    ["rSize", "vSize", "size", function (v) { return v + "%"; }],
+    ["rBright", "vBright", "bright", function (v) { return v + "%"; }],
+    ["rSpeed", "vSpeed", "speed", function (v) { return v + "%"; }],
+    ["rRest", "vRest", "rest", function (v) { return v === 0 ? "none" : v + "s"; }],
+    ["rSens", "vSens", "sens", function (v) { return v + "/10"; }],
+    ["rMsens", "vMsens", "msens", function (v) { return v + "/10"; }],
+    ["rVol", "vVol", "vol", function (v) { return v + "%"; }]
+  ];
+
+  sliders.forEach(function (s) {
+    var input = document.getElementById(s[0]);
+    input.addEventListener("input", function () {
+      S[s[2]] = parseFloat(input.value);
+      if (s[2] === "vol" && master && AC) {
+        master.gain.setTargetAtTime(S.vol / 100 * 0.6, AC.currentTime, 0.05);
+      }
+      syncUI(); save();
+    });
+  });
+
+  document.getElementById("tMic").addEventListener("click", function () { S.mic ? micOff() : micOn(); });
+  document.getElementById("tCam").addEventListener("click", function () { S.cam ? camOff() : camOn(); });
+
+  document.getElementById("tHold").addEventListener("click", function () {
+    S.hold = !S.hold; holding = false; syncUI(); save();
+  });
+
+  document.getElementById("tTones").addEventListener("click", function () {
+    S.tones = !S.tones;
+    if (S.tones) { audioStart(); play(0.8); }
+    syncUI(); save();
+  });
+
+  var segVoice = document.getElementById("segVoice");
+  segVoice.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-v]");
+    if (!b) return;
+    S.voice = b.dataset.v;
+    audioStart(); play(0.8);
+    syncUI(); save();
+  });
+
+  var segBed = document.getElementById("segBed");
+  segBed.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-b]");
+    if (!b) return;
+    S.bed = b.dataset.b;
+    audioStart(); applyBed();
+    nextPhrase = 0;
+    syncUI(); save();
+  });
+
+  function syncUI() {
+    Array.prototype.forEach.call(modesEl.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
+    });
+    Array.prototype.forEach.call(swEl.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.hex === S.color));
+    });
+    sliders.forEach(function (s) {
+      document.getElementById(s[0]).value = S[s[2]];
+      document.getElementById(s[1]).textContent = s[3](S[s[2]]);
+    });
+    Array.prototype.forEach.call(segVoice.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === S.voice));
+    });
+    Array.prototype.forEach.call(segBed.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.b === S.bed));
+    });
+    document.getElementById("tMic").setAttribute("aria-pressed", String(S.mic));
+    document.getElementById("tCam").setAttribute("aria-pressed", String(S.cam));
+    document.getElementById("tHold").setAttribute("aria-pressed", String(S.hold));
+    document.getElementById("tTones").setAttribute("aria-pressed", String(S.tones));
+  }
+
+  function openPanel() {
+    panelOpen = true; holding = false;
+    panel.classList.add("open");
+    panel.setAttribute("aria-hidden", "false");
+    document.getElementById("close").focus();
+  }
+  function closePanel() {
+    panelOpen = false;
+    panel.classList.remove("open");
+    panel.setAttribute("aria-hidden", "true");
+  }
+  document.getElementById("close").addEventListener("click", closePanel);
+
+  // Long press so a stray hand never lands in the settings.
+  var pressTimer = null;
+  function armPress() {
+    handle.classList.add("arming");
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(function () { handle.classList.remove("arming"); openPanel(); }, 900);
+  }
+  function cancelPress() { clearTimeout(pressTimer); handle.classList.remove("arming"); }
+  handle.addEventListener("pointerdown", function (e) { e.stopPropagation(); armPress(); });
+  handle.addEventListener("pointerup", cancelPress);
+  handle.addEventListener("pointerleave", cancelPress);
+  handle.addEventListener("pointercancel", cancelPress);
+  handle.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPanel(); }
+  });
+
+  /* ======================= start ======================= */
+
+  var gate = document.getElementById("gate");
+  document.getElementById("begin").addEventListener("click", function () {
+    audioStart();
+    play(0.7);
+    gate.classList.add("out");
+    setTimeout(function () {
+      gate.style.display = "none";
+      gateUp = false;
+      modeStart = performance.now();
+    }, 500);
+    toggleFull();
+  });
+
+  syncUI();
+})();
+</script>
+
+</body>
+</html>
