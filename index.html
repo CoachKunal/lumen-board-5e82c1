@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#000000">
+<meta http-equiv="Cache-Control" content="no-store">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -40,6 +41,30 @@
   }
 
   #stage { position: fixed; inset: 0; display: block; background: #000; }
+
+  /* For the adult in the room, not for him: parked at the very top edge, dim enough
+     that it is not a competing target, legible enough to tell you what is happening. */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+    display: none;
+    justify-content: center;
+    gap: .9rem;
+    padding: .55rem 1rem;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: #4A4036;
+    pointer-events: none;
+    transition: color .25s linear;
+  }
+  #hud.on { display: flex; }
+  #hud.mine { color: #6E6558; }
+  #hud.his { color: var(--amber); }
+  #hud.win { color: #8FBF6A; }
+  #hud b { font-weight: 400; }
 
   video#cam { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: -10px; }
 
@@ -137,40 +162,70 @@
 
   /* ---------- Corner handle ---------- */
 
+  /* Deliberately low contrast and corner-parked so it is not a target for him,
+     but a real, findable button for an adult. */
   #handle {
     position: fixed;
-    right: 0; bottom: 0;
+    right: 10px; bottom: 10px;
     z-index: 30;
-    width: 74px; height: 74px;
+    width: 96px; height: 96px;
     border: 0;
     background: transparent;
     cursor: pointer;
     display: grid;
     place-items: center;
-    opacity: .28;
-    transition: opacity .4s ease;
+    transition: opacity .3s ease;
   }
-  #handle:hover, #handle:focus-visible { opacity: .9; }
-  #handle:focus-visible { outline: 1px solid var(--line); outline-offset: -8px; }
+  #handle:focus-visible { outline: 2px solid var(--amber); outline-offset: -10px; border-radius: 50%; }
+
   #handle .dot {
-    width: 9px; height: 9px; border-radius: 50%;
-    background: #4A4036;
-    transition: background .2s linear;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1px solid #4A4036;
+    background: rgba(22,18,14,.72);
+    display: grid;
+    place-items: center;
+    transition: border-color .2s linear, background .2s linear;
   }
+  #handle .dot::after {
+    content: "";
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    border: 2px solid #6E6558;
+    transition: border-color .2s linear;
+  }
+  #handle:hover .dot { border-color: var(--warm); background: rgba(34,28,22,.9); }
+  #handle:hover .dot::after { border-color: var(--warm-hi); }
+
+  /* fills over the hold, so you can see how much longer to keep pressing */
   #handle .ring {
     position: absolute;
-    width: 34px; height: 34px;
+    width: 56px; height: 56px;
     border-radius: 50%;
-    border: 1.5px solid var(--amber);
+    border: 2px solid var(--amber);
     opacity: 0;
-    transform: scale(.4);
+    transform: scale(.72);
   }
   #handle.arming .ring {
-    opacity: .85;
+    opacity: .9;
     transform: scale(1);
-    transition: transform .85s cubic-bezier(.3,0,.2,1), opacity .2s linear;
+    transition: transform .6s cubic-bezier(.3,0,.2,1), opacity .15s linear;
   }
-  #handle.arming .dot { background: var(--amber); }
+  #handle.arming .dot { border-color: var(--amber); }
+  #handle.arming .dot::after { border-color: var(--amber); }
+
+  #handle .hint {
+    position: absolute;
+    bottom: 2px;
+    font-family: var(--mono);
+    font-size: .56rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: #5C5347;
+    white-space: nowrap;
+    transition: color .2s linear;
+  }
+  #handle:hover .hint, #handle.arming .hint { color: var(--amber); }
 
   /* ---------- Panel ---------- */
 
@@ -436,6 +491,16 @@
   .meter { height: 5px; border-radius: 3px; background: var(--ink-3); overflow: hidden; }
   .meter i { display: block; height: 100%; width: 0%; background: var(--amber); border-radius: 3px; transition: width .06s linear; }
 
+  .reading {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: -.4rem 0 0;
+    min-height: .9rem;
+  }
+
   .msg { font-size: .8rem; line-height: 1.5; color: #8C8275; margin: 0; }
   .msg.warn { color: #D98A3A; }
   .msg.good { color: #8FBF6A; }
@@ -482,7 +547,10 @@
 <button id="handle" aria-label="Hold to open caregiver settings">
   <span class="ring"></span>
   <span class="dot"></span>
+  <span class="hint">Hold</span>
 </button>
+
+<div id="hud" aria-hidden="true"></div>
 
 <div id="gate">
   <div class="gate-inner">
@@ -535,11 +603,14 @@
         <span class="switch"></span>
       </button>
       <div class="meter"><i id="micBar"></i></div>
+      <p class="reading"><span id="micWhy"></span></p>
       <p class="msg" id="micMsg">Off. The microphone only drives the picture. Nothing is recorded or sent.</p>
+      <button class="ghost" id="calib">Calibrate to this room</button>
       <div class="row">
         <div class="top"><span>How easily his voice reacts</span><span class="val" id="vSens"></span></div>
         <input type="range" id="rSens" min="1" max="10" step="1" aria-label="Voice sensitivity">
       </div>
+      <p class="msg">It now needs two things at once: clearly louder than the room, and shaped like a voice rather than a fan or a knock. If it still fires on the room, calibrate again and drop this to 3 or 4.</p>
 
       <button class="toggle" id="tCam" aria-pressed="false">
         <span>His movement
@@ -553,6 +624,13 @@
         <div class="top"><span>How easily his movement reacts</span><span class="val" id="vMsens"></span></div>
         <input type="range" id="rMsens" min="1" max="10" step="1" aria-label="Movement sensitivity">
       </div>
+
+      <button class="toggle" id="tHud" aria-pressed="true">
+        <span>Show me what it is doing
+          <span class="sub">A dim line at the very top: whose turn it is, and what it is listening for. For you, not for him.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
 
       <button class="toggle" id="tHold" aria-pressed="false">
         <span>Resting counts as holding
@@ -707,7 +785,8 @@
     cam: false, msens: 5,
     hold: true,
     voice: "kalimba", bed: "kalimba",
-    tones: true, vol: 55
+    tones: true, vol: 55,
+    hud: true
   };
 
   var S = load();
@@ -956,23 +1035,106 @@
 
   /* ======================= microphone ======================= */
 
-  var micStream = null, analyser = null, micBuf = null, micGate = 0;
-  var micFloor = 0.004, micExcess = 0, micEnergy = 0, micHot = false;
+  var micStream = null, analyser = null, micBuf = null, freqBuf = null, micGate = 0;
+  var micEnergy = 0, micHot = false;
+  var ambDb = -55, devDb = 4, micDb = -90, voiceRatio = 0, micHold = 0, micLast = 0;
+  var calibUntil = 0, calibSamples = [];
   var micBar = document.getElementById("micBar");
   var micMsg = document.getElementById("micMsg");
+  var micWhy = document.getElementById("micWhy");
 
-  // A room is never silent. Rather than compare his voice to zero, track what the room
-  // sounds like when nothing is happening and compare against that. Falls fast so a
-  // noisy moment does not stay baked in; rises slowly so his own voice never becomes
-  // the new normal.
-  function trackFloor(floor, level) {
-    return level < floor ? floor + (level - floor) * 0.08
-                         : floor + (level - floor) * 0.0012;
+  // Sensitivity is a margin in decibels above the room, not a raw level.
+  // 1 means he has to be well clear of it. 10 means only just above it.
+  function marginDb(sens) { return 27 - sens * 2; }
+
+  function readMic(now) {
+    if (!analyser) return;
+    var dt = Math.min(0.1, (now - micLast) / 1000);
+    micLast = now;
+
+    analyser.getFloatTimeDomainData(micBuf);
+    var sum = 0;
+    for (var i = 0; i < micBuf.length; i++) sum += micBuf[i] * micBuf[i];
+    micDb = 20 * Math.log10(Math.sqrt(sum / micBuf.length) + 1e-7);
+
+    // Loudness alone cannot tell a child apart from a fan, so look at where the energy
+    // sits. A voice puts most of its power between roughly 180Hz and 1.6kHz. Room noise
+    // is mostly rumble below that or hiss above it.
+    analyser.getByteFrequencyData(freqBuf);
+    var binHz = AC.sampleRate / analyser.fftSize;
+    var vLo = Math.floor(180 / binHz), vHi = Math.ceil(1600 / binHz);
+    var hHi = Math.ceil(6000 / binHz);
+    var voice = 0, total = 0;
+    for (var b = 1; b < Math.min(hHi, freqBuf.length); b++) {
+      var v = freqBuf[b];
+      total += v;
+      if (b >= vLo && b <= vHi) voice += v;
+    }
+    voiceRatio = total > 0 ? voice / total : 0;
+
+    if (now < calibUntil) {                       // explicit calibration beats guessing
+      calibSamples.push(micDb);
+      micBar.style.width = "0%";
+      return;
+    }
+
+    var margin = Math.max(marginDb(S.sens), devDb * 2.2);
+    var thresh = ambDb + margin;
+    var loudEnough = micDb > thresh;
+    var soundsLikeHim = voiceRatio > 0.40;
+    var over = loudEnough && soundsLikeHim;
+
+    // Only learn the room while he is not the one making the noise.
+    if (!over && micHold === 0) {
+      ambDb += (micDb - ambDb) * 0.004;
+      devDb += (Math.abs(micDb - ambDb) - devDb) * 0.004;
+      devDb = Math.max(1.5, Math.min(12, devDb));
+    }
+
+    // A bump, a click, a door is instant. A vocalisation lasts. Requiring it to hold
+    // for a tenth of a second throws away almost every false fire.
+    micHold = over ? micHold + dt : 0;
+
+    micBar.style.width = Math.max(0, Math.min(100,
+      ((micDb - ambDb) / margin) * 100)) + "%";
+
+    if (micWhy) {
+      micWhy.textContent = !loudEnough
+        ? "quiet"
+        : (soundsLikeHim ? "hearing a voice" : "noise, not a voice");
+    }
+
+    if (micHold > 0.10) {
+      micHot = true;
+      if (now - micGate > 800) { micGate = now; answer(fieldX(), fieldY(), 1, "voice"); }
+      micEnergy = Math.max(micEnergy, Math.min(1, (micDb - ambDb) / margin));
+    } else {
+      micHot = false;
+      micEnergy *= 0.90;
+    }
   }
 
-  // Sensitivity is "how many times louder than the room", not a raw number.
-  // 1 means he has to be about ten times the room. 10 means barely above it.
-  function triggerRatio(sens) { return 11.5 - sens * 0.95; }
+  function calibrate() {
+    if (!analyser) return;
+    calibSamples = [];
+    calibUntil = performance.now() + 3000;
+    micMsg.className = "msg warn";
+    micMsg.textContent = "Measuring the room. Keep everyone quiet for three seconds.";
+    setTimeout(function () {
+      if (!calibSamples.length) return;
+      var m = calibSamples.reduce(function (a, b) { return a + b; }, 0) / calibSamples.length;
+      var sd = Math.sqrt(calibSamples.reduce(function (a, b) {
+        return a + (b - m) * (b - m);
+      }, 0) / calibSamples.length);
+      ambDb = m;
+      devDb = Math.max(1.5, Math.min(12, sd));
+      calibSamples = [];
+      micMsg.className = "msg good";
+      micMsg.textContent = "Set to this room. It now needs about " +
+        Math.round(Math.max(marginDb(S.sens), devDb * 2.2)) + " dB above the background, " +
+        "and it has to sound like a voice.";
+    }, 3100);
+  }
 
   function micOn() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -985,13 +1147,16 @@
       micStream = stream;
       var src = AC.createMediaStreamSource(stream);
       analyser = AC.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.6;
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.45;
       micBuf = new Float32Array(analyser.fftSize);
+      freqBuf = new Uint8Array(analyser.frequencyBinCount);
+      micLast = performance.now();
       src.connect(analyser);          // analyser only, never routed to the speakers
       S.mic = true; syncUI(); save();
       micMsg.className = "msg good";
       micMsg.textContent = "Listening. Nothing is recorded or sent anywhere.";
+      calibrate();                    // learn this room straight away
     }).catch(function () {
       S.mic = false; syncUI(); deviceFail(micMsg, "mic");
     });
@@ -999,37 +1164,13 @@
 
   function micOff() {
     if (micStream) { micStream.getTracks().forEach(function (t) { t.stop(); }); micStream = null; }
-    analyser = null; micEnergy = 0; micExcess = 0; micHot = false;
-    micFloor = 0.004; micBar.style.width = "0%";
+    analyser = null; micEnergy = 0; micHot = false; micHold = 0;
+    ambDb = -55; devDb = 4; calibUntil = 0; calibSamples = [];
+    micBar.style.width = "0%";
+    if (micWhy) micWhy.textContent = "";
     S.mic = false; syncUI(); save();
     micMsg.className = "msg";
     micMsg.textContent = "Off. The microphone only drives the picture. Nothing is recorded or sent.";
-  }
-
-  function readMic(now) {
-    if (!analyser) return;
-    analyser.getFloatTimeDomainData(micBuf);
-    var sum = 0;
-    for (var i = 0; i < micBuf.length; i++) sum += micBuf[i] * micBuf[i];
-    var rms = Math.sqrt(sum / micBuf.length);
-
-    if (!micHot) micFloor = trackFloor(micFloor, rms);
-    micFloor = Math.max(micFloor, 0.0015);
-
-    var T = triggerRatio(S.sens);
-    micExcess = rms / micFloor;
-
-    // The bar fills exactly as it fires, so what you see is what it does.
-    micBar.style.width = Math.min(100, (micExcess / T) * 100) + "%";
-
-    if (micExcess > T) {
-      micHot = true;
-      if (now - micGate > 800) { micGate = now; answer(fieldX(), fieldY(), 1, "voice"); }
-      micEnergy = Math.max(micEnergy, Math.min(1, micExcess / T));
-    } else if (micExcess < T * 0.55) {
-      micHot = false;
-    }
-    if (!micHot) micEnergy *= 0.90;
   }
 
   /* ======================= camera motion ======================= */
@@ -1037,7 +1178,7 @@
   var camStream = null, vid = document.getElementById("cam");
   var mc = document.createElement("canvas"), mcx = null;
   var prevFrame = null, camGate = 0, camReady = false;
-  var camFloor = 0.003, camExcess = 0, camEnergy = 0, camHot = false;
+  var camFloor = 0.003, camDev = 0.004, camExcess = 0, camEnergy = 0, camHot = false, camRun = 0;
   var camBar = document.getElementById("camBar");
   var camMsg = document.getElementById("camMsg");
 
@@ -1068,7 +1209,7 @@
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     vid.srcObject = null;
     camReady = false; prevFrame = null; camEnergy = 0; camExcess = 0; camHot = false;
-    camFloor = 0.003; camBar.style.width = "0%";
+    camRun = 0; camFloor = 0.003; camDev = 0.004; camBar.style.width = "0%";
     S.cam = false; syncUI(); save();
     camMsg.className = "msg";
     camMsg.textContent = "Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.";
@@ -1094,21 +1235,30 @@
       }
       var frac = hits / lum.length;
 
-      if (!camHot) camFloor = trackFloor(camFloor, frac);
+      if (camRun === 0) {
+        camFloor += (frac - camFloor) * 0.01;
+        camDev += (Math.abs(frac - camFloor) - camDev) * 0.01;
+      }
       camFloor = Math.max(camFloor, 0.0012);
+      camDev = Math.max(0.002, Math.min(0.08, camDev));
 
-      var T = triggerRatio(S.msens);
-      camExcess = frac / camFloor;
-      camBar.style.width = Math.min(100, (camExcess / T) * 100) + "%";
+      // Same shape as the microphone: a margin over the room, widened automatically
+      // when the room itself is restless.
+      var T = Math.max((12 - S.msens) * camFloor, camFloor + camDev * 3);
+      camExcess = frac;
+      camBar.style.width = Math.max(0, Math.min(100, (frac / T) * 100)) + "%";
 
-      if (camExcess > T) {
+      // Two readings in a row, so a flicker or a passing shadow is not a response.
+      camRun = frac > T ? camRun + 1 : 0;
+
+      if (camRun >= 2) {
         camHot = true;
         if (now - camGate > 900) { camGate = now; answer(fieldX(), fieldY(), 1, "movement"); }
-        camEnergy = Math.max(camEnergy, Math.min(1, camExcess / T));
-      } else if (camExcess < T * 0.55) {
+        camEnergy = Math.max(camEnergy, Math.min(1, frac / T));
+      } else {
         camHot = false;
+        camEnergy *= 0.90;
       }
-      if (!camHot) camEnergy *= 0.90;
     }
     prevFrame = lum;
   }
@@ -1243,6 +1393,8 @@
     bright = Math.min(1, bright * (1 + rw * 0.5));
     e = Math.max(e, rw * 0.8);
 
+    updateHud(now, rw);
+
     if (S.mode === "beacon") drawBeacon(t, col, base, bright, sp, e);
     else if (S.mode === "bloom") drawBloom(now, col, base, bright, e);
     else if (S.mode === "track") drawTrack(t, col, base, bright, sp, e);
@@ -1252,6 +1404,42 @@
     else if (S.mode === "call") drawCall(now, col, base, bright, e);
     else if (S.mode === "ready") drawReady(now, col, base, bright, e);
     else drawCalm(t, col, base, bright, e);
+  }
+
+  var hud = document.getElementById("hud");
+  var hudState = "";
+
+  function updateHud(now, rw) {
+    if (!S.hud) { if (hudState !== "off") { hud.className = ""; hudState = "off"; } return; }
+
+    var cls = "on", text;
+    if (rw > 0.2) {
+      cls = "on win"; text = "yes";
+    } else if (S.mode === "call") {
+      if (seq.name === "call") { cls = "on mine"; text = "my turn"; }
+      else if (seq.name === "wait") {
+        cls = "on his";
+        text = "your turn &middot; " + Math.max(0, Math.ceil(S.wait - (now - seq.t0) / 1000)) + "s";
+      } else { cls = "on"; text = "&nbsp;"; }
+    } else if (S.mode === "ready") {
+      if (seq.name === "cue") { cls = "on mine"; text = "ready, set"; }
+      else if (seq.name === "go") { cls = "on his"; text = "go"; }
+      else { cls = "on"; text = "&nbsp;"; }
+    } else if (prompt.open) {
+      cls = "on his"; text = "waiting for him";
+    } else {
+      var listening = [];
+      if (S.mic) listening.push("voice");
+      if (S.cam) listening.push("movement");
+      text = listening.length ? "listening for " + listening.join(" and ") : "&nbsp;";
+    }
+
+    var key = cls + text;
+    if (key !== hudState) {
+      hud.className = cls;
+      hud.innerHTML = "<b>" + text + "</b>";
+      hudState = key;
+    }
   }
 
   // Solid core for a defined edge, halo for the glow. CVI needs form, not only light.
@@ -1370,8 +1558,8 @@
       if (!prompt.open) { seq = { name: "reward", t0: now }; return; }
       var w = (now - seq.t0) / 1000;
       if (w > S.wait) { closePrompt(); seq = { name: "rest", t0: now }; return; }
-      // a low ember: the board is still here, still listening, not demanding
-      orb(x, y, base * 0.42, col, bright * 0.16);
+      // Fully dark and fully silent. A half-lit screen blurs the handover; an empty
+      // one says the turn is his without any ambiguity.
       return;
     }
 
@@ -1514,6 +1702,15 @@
 
   document.getElementById("tMic").addEventListener("click", function () { S.mic ? micOff() : micOn(); });
   document.getElementById("tCam").addEventListener("click", function () { S.cam ? camOff() : camOn(); });
+
+  document.getElementById("tHud").addEventListener("click", function () {
+    S.hud = !S.hud; hudState = ""; syncUI(); save();
+  });
+
+  document.getElementById("calib").addEventListener("click", function () {
+    if (!S.mic) { micMsg.className = "msg warn"; micMsg.textContent = "Turn his voice on first."; return; }
+    calibrate();
+  });
 
   document.getElementById("tHold").addEventListener("click", function () {
     S.hold = !S.hold; holding = false; syncUI(); save();
@@ -1661,6 +1858,7 @@
     });
     document.getElementById("tMic").setAttribute("aria-pressed", String(S.mic));
     document.getElementById("tCam").setAttribute("aria-pressed", String(S.cam));
+    document.getElementById("tHud").setAttribute("aria-pressed", String(S.hud));
     document.getElementById("tHold").setAttribute("aria-pressed", String(S.hold));
     document.getElementById("tTones").setAttribute("aria-pressed", String(S.tones));
   }
@@ -1684,7 +1882,7 @@
   function armPress() {
     handle.classList.add("arming");
     clearTimeout(pressTimer);
-    pressTimer = setTimeout(function () { handle.classList.remove("arming"); openPanel(); }, 900);
+    pressTimer = setTimeout(function () { handle.classList.remove("arming"); openPanel(); }, 600);
   }
   function cancelPress() { clearTimeout(pressTimer); handle.classList.remove("arming"); }
   handle.addEventListener("pointerdown", function (e) { e.stopPropagation(); armPress(); });
