@@ -563,7 +563,7 @@
       and it does not ask for hands, legs, or words.
     </p>
     <ul class="inputs">
-      <li>His voice</li>
+      <li>His sounds</li>
       <li>His movement</li>
       <li>Any touch, anywhere</li>
       <li>A switch</li>
@@ -597,8 +597,8 @@
       </div>
 
       <button class="toggle" id="tMic" aria-pressed="false">
-        <span>His voice
-          <span class="sub">Every sound he makes grows the light and plucks a note.</span>
+        <span>His sounds
+          <span class="sub">Yells, squeals, raspberries, any noise he makes with his mouth. Each one grows the light and plucks a note.</span>
         </span>
         <span class="switch"></span>
       </button>
@@ -607,10 +607,10 @@
       <p class="msg" id="micMsg">Off. The microphone only drives the picture. Nothing is recorded or sent.</p>
       <button class="ghost" id="calib">Calibrate to this room</button>
       <div class="row">
-        <div class="top"><span>How easily his voice reacts</span><span class="val" id="vSens"></span></div>
-        <input type="range" id="rSens" min="1" max="10" step="1" aria-label="Voice sensitivity">
+        <div class="top"><span>How easily his sounds react</span><span class="val" id="vSens"></span></div>
+        <input type="range" id="rSens" min="1" max="10" step="1" aria-label="Sound sensitivity">
       </div>
-      <p class="msg">It now needs two things at once: clearly louder than the room, and shaped like a voice rather than a fan or a knock. If it still fires on the room, calibrate again and drop this to 3 or 4.</p>
+      <p class="msg">It listens for sounds that start, not for loudness, so a fan or a fridge running steadily is ignored no matter how loud it is. If it still fires on the room, calibrate again and drop this to 3 or 4.</p>
 
       <button class="toggle" id="tCam" aria-pressed="false">
         <span>His movement
@@ -742,7 +742,7 @@
       <dl>
         <dt>Any key</dt><dd>Answers him, for a plug-in switch</dd>
         <dt>1&ndash;9</dt><dd>Change what the light does</dd>
-        <dt>M</dt><dd>His voice on or off</dd>
+        <dt>M</dt><dd>His sounds on or off</dd>
         <dt>C</dt><dd>His movement on or off</dd>
         <dt>F</dt><dd>Full screen</dd>
         <dt>Esc</dt><dd>Close this panel</dd>
@@ -1038,7 +1038,9 @@
   var micStream = null, analyser = null, micBuf = null, freqBuf = null, micGate = 0;
   var micEnergy = 0, micHot = false;
   var ambDb = -55, devDb = 4, micDb = -90, voiceRatio = 0, micHold = 0, micLast = 0;
-  var calibUntil = 0, calibSamples = [];
+  var prevSpec = new Float32Array(2048);
+  var fluxFloor = 0.002, fluxDev = 0.001;
+  var calibUntil = 0, calibSamples = [], fluxSamples = [];
   var micBar = document.getElementById("micBar");
   var micMsg = document.getElementById("micMsg");
   var micWhy = document.getElementById("micWhy");
@@ -1057,82 +1059,97 @@
     for (var i = 0; i < micBuf.length; i++) sum += micBuf[i] * micBuf[i];
     micDb = 20 * Math.log10(Math.sqrt(sum / micBuf.length) + 1e-7);
 
-    // Loudness alone cannot tell a child apart from a fan, so look at where the energy
-    // sits. A voice puts most of its power between roughly 180Hz and 1.6kHz. Room noise
-    // is mostly rumble below that or hiss above it.
     analyser.getByteFrequencyData(freqBuf);
     var binHz = AC.sampleRate / analyser.fftSize;
-    var vLo = Math.floor(180 / binHz), vHi = Math.ceil(1600 / binHz);
-    var hHi = Math.ceil(6000 / binHz);
-    var voice = 0, total = 0;
-    for (var b = 1; b < Math.min(hHi, freqBuf.length); b++) {
-      var v = freqBuf[b];
-      total += v;
-      if (b >= vLo && b <= vHi) voice += v;
+    var lo = Math.max(1, Math.floor(200 / binHz));
+    var hi = Math.min(freqBuf.length - 1, Math.ceil(5000 / binHz));
+
+    // He yells, squeals, blows raspberries. Those live all over the spectrum, so a
+    // narrow speech band would throw most of them away. Take everything from 200Hz to
+    // 5kHz and separate him from the room a different way: by change over time.
+    // A fan, a fridge, traffic hum are all steady. A sound he makes is an event.
+    var flux = 0, midE = 0, lowE = 0;
+    for (var b = 1; b < hi; b++) {
+      var m = freqBuf[b] / 255;
+      if (b < lo) { lowE += m; continue; }
+      midE += m;
+      var d = m - (prevSpec[b] || 0);
+      if (d > 0) flux += d;
     }
-    voiceRatio = total > 0 ? voice / total : 0;
+    for (var c = 1; c < hi; c++) prevSpec[c] = freqBuf[c] / 255;
+    flux = flux / Math.max(1, hi - lo);
+    voiceRatio = (midE + lowE) > 0 ? midE / (midE + lowE) : 0;
 
     if (now < calibUntil) {                       // explicit calibration beats guessing
       calibSamples.push(micDb);
+      fluxSamples.push(flux);
       micBar.style.width = "0%";
+      if (micWhy) micWhy.textContent = "measuring the room";
       return;
     }
 
-    var margin = Math.max(marginDb(S.sens), devDb * 2.2);
-    var thresh = ambDb + margin;
-    var loudEnough = micDb > thresh;
-    var soundsLikeHim = voiceRatio > 0.40;
-    var over = loudEnough && soundsLikeHim;
+    var k = 11 - S.sens;                          // how far above the room's own restlessness
+    var fluxThresh = Math.max(fluxFloor + fluxDev * k, 0.0022);
+    var notRumble = voiceRatio > 0.45;            // door thuds and HVAC sit below 200Hz
+    var audible = micDb > ambDb + 4;
+    var onset = flux > fluxThresh && notRumble && audible;
 
     // Only learn the room while he is not the one making the noise.
-    if (!over && micHold === 0) {
+    if (!onset && micHold === 0) {
       ambDb += (micDb - ambDb) * 0.004;
-      devDb += (Math.abs(micDb - ambDb) - devDb) * 0.004;
-      devDb = Math.max(1.5, Math.min(12, devDb));
+      devDb = Math.max(1.5, Math.min(12, devDb + (Math.abs(micDb - ambDb) - devDb) * 0.004));
+      fluxFloor += (flux - fluxFloor) * 0.006;
+      fluxDev = Math.max(0.0004, Math.min(0.05,
+        fluxDev + (Math.abs(flux - fluxFloor) - fluxDev) * 0.006));
     }
 
-    // A bump, a click, a door is instant. A vocalisation lasts. Requiring it to hold
-    // for a tenth of a second throws away almost every false fire.
-    micHold = over ? micHold + dt : 0;
+    // Once he has started, keep the light with him while the sound continues, rather
+    // than demanding a fresh onset every frame.
+    var sustaining = micHold > 0 && micDb > ambDb + Math.max(3, marginDb(S.sens) * 0.35);
+    micHold = (onset || sustaining) ? micHold + dt : 0;
 
-    micBar.style.width = Math.max(0, Math.min(100,
-      ((micDb - ambDb) / margin) * 100)) + "%";
+    micBar.style.width = Math.max(0, Math.min(100, (flux / fluxThresh) * 100)) + "%";
 
     if (micWhy) {
-      micWhy.textContent = !loudEnough
-        ? "quiet"
-        : (soundsLikeHim ? "hearing a voice" : "noise, not a voice");
+      micWhy.textContent = micHold > 0 ? "that is him"
+        : !audible ? "quiet"
+        : !notRumble ? "low rumble, ignoring"
+        : "steady room noise, ignoring";
     }
 
-    if (micHold > 0.10) {
+    if (micHold > 0.06) {
       micHot = true;
-      if (now - micGate > 800) { micGate = now; answer(fieldX(), fieldY(), 1, "voice"); }
-      micEnergy = Math.max(micEnergy, Math.min(1, (micDb - ambDb) / margin));
+      if (now - micGate > 800) { micGate = now; answer(fieldX(), fieldY(), 1, "sounds"); }
+      micEnergy = Math.max(micEnergy, Math.min(1, (micDb - ambDb) / Math.max(6, marginDb(S.sens))));
     } else {
       micHot = false;
       micEnergy *= 0.90;
     }
   }
 
+  function meanSd(a) {
+    var m = a.reduce(function (x, y) { return x + y; }, 0) / a.length;
+    var sd = Math.sqrt(a.reduce(function (x, y) { return x + (y - m) * (y - m); }, 0) / a.length);
+    return [m, sd];
+  }
+
   function calibrate() {
     if (!analyser) return;
-    calibSamples = [];
+    calibSamples = []; fluxSamples = [];
     calibUntil = performance.now() + 3000;
     micMsg.className = "msg warn";
     micMsg.textContent = "Measuring the room. Keep everyone quiet for three seconds.";
     setTimeout(function () {
-      if (!calibSamples.length) return;
-      var m = calibSamples.reduce(function (a, b) { return a + b; }, 0) / calibSamples.length;
-      var sd = Math.sqrt(calibSamples.reduce(function (a, b) {
-        return a + (b - m) * (b - m);
-      }, 0) / calibSamples.length);
-      ambDb = m;
-      devDb = Math.max(1.5, Math.min(12, sd));
-      calibSamples = [];
+      if (!calibSamples.length || !fluxSamples.length) return;
+      var d = meanSd(calibSamples), f = meanSd(fluxSamples);
+      ambDb = d[0];
+      devDb = Math.max(1.5, Math.min(12, d[1]));
+      fluxFloor = f[0];
+      fluxDev = Math.max(0.0004, Math.min(0.05, f[1]));
+      calibSamples = []; fluxSamples = [];
       micMsg.className = "msg good";
-      micMsg.textContent = "Set to this room. It now needs about " +
-        Math.round(Math.max(marginDb(S.sens), devDb * 2.2)) + " dB above the background, " +
-        "and it has to sound like a voice.";
+      micMsg.textContent = "Set to this room. Steady noise at this level will now be ignored, " +
+        "and it is listening for sounds he starts rather than for loudness.";
     }, 3100);
   }
 
@@ -1429,7 +1446,7 @@
       cls = "on his"; text = "waiting for him";
     } else {
       var listening = [];
-      if (S.mic) listening.push("voice");
+      if (S.mic) listening.push("his sounds");
       if (S.cam) listening.push("movement");
       text = listening.length ? "listening for " + listening.join(" and ") : "&nbsp;";
     }
@@ -1708,7 +1725,7 @@
   });
 
   document.getElementById("calib").addEventListener("click", function () {
-    if (!S.mic) { micMsg.className = "msg warn"; micMsg.textContent = "Turn his voice on first."; return; }
+    if (!S.mic) { micMsg.className = "msg warn"; micMsg.textContent = "Turn his sounds on first."; return; }
     calibrate();
   });
 
