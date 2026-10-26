@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 </head>
 <body>
-<title>Beacon — a light board</title>
+<title>Beacon light board</title>
 
 <style>
   :root {
@@ -555,12 +555,11 @@
 <div id="gate">
   <div class="gate-inner">
     <p class="eyebrow">A light board for CVI</p>
-    <h1>Black field. One light. <em>He does not have to reach it.</em></h1>
+    <h1>One light on a black screen <em>that answers whatever he does.</em></h1>
     <p class="lede">
-      There is nothing on this screen to aim at and nothing to press. The light answers a sound
-      he makes, a movement he makes, a switch, or contact anywhere at all on the glass.
-      <strong>He acts, the light grows, the kalimba answers.</strong> That loop is the whole game,
-      and it does not ask for hands, legs, or words.
+      <strong>The light grows when he makes a sound, moves, hits a switch or touches anywhere on
+      the screen, and the kalimba plays a note back to him.</strong> He doesn’t have to aim at
+      anything or press a button to make it happen.
     </p>
     <ul class="inputs">
       <li>His sounds</li>
@@ -569,14 +568,14 @@
       <li>A switch</li>
     </ul>
     <p class="lede">
-      Nine ways to play sit behind the corner dot, from one light breathing in the dark to
-      a round of call and answer where the board plays, falls silent, and waits for him to
-      take his turn.
+      There are nine ways to play in the settings, from a single light slowly breathing in the
+      dark to call and answer, where the board plays a few notes and then waits for him to take
+      his turn.
     </p>
     <button class="begin" id="begin">Turn the light on</button>
     <p class="gate-note">
-      Best full screen with the room lights low.<br>
-      Hold the dot in the bottom-right corner for one second to change anything.
+      It works best full screen with the room lights low.<br>
+      To open the settings, hold the dot in the bottom-right corner for about a second.
     </p>
   </div>
 </div>
@@ -593,48 +592,48 @@
       <p class="label">How he plays</p>
 
       <div class="static">Any touch, anywhere
-        <span class="sub">The whole screen is one big switch. A hand, a forearm, a cheek, a knee. Nothing needs to be aimed.</span>
+        <span class="sub">The whole screen works as one big switch, so a hand, forearm, cheek or knee anywhere on it counts.</span>
       </div>
 
       <button class="toggle" id="tMic" aria-pressed="false">
         <span>His sounds
-          <span class="sub">Yells, squeals, raspberries, any noise he makes with his mouth. Each one grows the light and plucks a note.</span>
+          <span class="sub">Any noise he makes with his mouth, like yells, squeals or raspberries, grows the light and plays a note.</span>
         </span>
         <span class="switch"></span>
       </button>
       <div class="meter"><i id="micBar"></i></div>
       <p class="reading"><span id="micWhy"></span></p>
-      <p class="msg" id="micMsg">Off. The microphone only drives the picture. Nothing is recorded or sent.</p>
-      <button class="ghost" id="calib">Calibrate to this room</button>
+      <p class="msg" id="micMsg">Off. The microphone only moves the light. Nothing gets recorded or sent.</p>
+      <button class="ghost" id="calib">Set it to this room</button>
       <div class="row">
-        <div class="top"><span>How easily his sounds react</span><span class="val" id="vSens"></span></div>
+        <div class="top"><span>How sensitive it is to his sounds</span><span class="val" id="vSens"></span></div>
         <input type="range" id="rSens" min="1" max="10" step="1" aria-label="Sound sensitivity">
       </div>
-      <p class="msg">It listens for sounds that start, not for loudness, so a fan or a fridge running steadily is ignored no matter how loud it is. If it still fires on the room, calibrate again and drop this to 3 or 4.</p>
+      <p class="msg">It listens for new sounds starting up, so a fan or fridge that runs steadily gets ignored however loud it is. If background noise still sets it off, set it to the room again and turn this down to 3 or 4.</p>
 
       <button class="toggle" id="tCam" aria-pressed="false">
         <span>His movement
-          <span class="sub">The camera watches for motion only. A turned head or a lifted arm lights it up.</span>
+          <span class="sub">The camera only looks for motion, so turning his head or lifting an arm lights it up.</span>
         </span>
         <span class="switch"></span>
       </button>
       <div class="meter"><i id="camBar"></i></div>
-      <p class="msg" id="camMsg">Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.</p>
+      <p class="msg" id="camMsg">Off. The camera doesn’t save, show or send any picture. Point it at him and keep enough light in the room to see him.</p>
       <div class="row">
-        <div class="top"><span>How easily his movement reacts</span><span class="val" id="vMsens"></span></div>
+        <div class="top"><span>How sensitive it is to his movement</span><span class="val" id="vMsens"></span></div>
         <input type="range" id="rMsens" min="1" max="10" step="1" aria-label="Movement sensitivity">
       </div>
 
       <button class="toggle" id="tHud" aria-pressed="true">
-        <span>Show me what it is doing
-          <span class="sub">A dim line at the very top: whose turn it is, and what it is listening for. For you, not for him.</span>
+        <span>Show me what it’s doing
+          <span class="sub">Adds a dim line at the top showing whose turn it is and what it’s listening for. It’s meant for you to read.</span>
         </span>
         <span class="switch"></span>
       </button>
 
       <button class="toggle" id="tHold" aria-pressed="false">
         <span>Resting counts as holding
-          <span class="sub">If his hand comes to rest on the screen, the light stays up instead of fading.</span>
+          <span class="sub">If his hand comes to rest on the screen, the light stays on instead of fading.</span>
         </span>
         <span class="switch"></span>
       </button>
@@ -648,13 +647,13 @@
     <div class="group">
       <p class="label">Where it sits</p>
       <div class="field" id="field" role="group" aria-label="Where the light appears on screen"></div>
-      <p class="msg">Most children see better in one part of their field than the rest. Put the light where he turns to look, and in Reach mode put it where his hand can actually get to.</p>
+      <p class="msg">Most children see better in one part of their vision than another. Put the light where he tends to turn to look. In Reach and hold, put it where his hand can actually get to.</p>
     </div>
 
     <div class="group">
       <p class="label">Color</p>
       <div class="swatches" id="swatches"></div>
-      <p class="msg">Red and yellow are usually seen first. Change it if one holds him longer.</p>
+      <p class="msg">Red and yellow usually get noticed first. Try a different color if another one holds his attention longer.</p>
     </div>
 
     <div class="group">
@@ -663,7 +662,7 @@
         <div class="top"><span>How long it waits</span><span class="val" id="vWait"></span></div>
         <input type="range" id="rWait" min="3" max="20" step="1" aria-label="How long the board waits for a response">
       </div>
-      <p class="msg">Used by Call and answer. The silence is doing the work, so resist shortening it. Eight seconds feels long to you and is often about right for him.</p>
+      <p class="msg">Only used in Call and answer. About eight seconds usually works well, even though it’ll probably feel slow while you’re sitting with him.</p>
     </div>
 
     <div class="group">
@@ -673,7 +672,7 @@
         <button class="ghost" id="copyStats">Copy for his team</button>
         <button class="ghost" id="resetStats">Start over</button>
       </div>
-      <p class="msg">Counted on this device only, and cleared when you reload. Latency is the gap between the board asking and him answering, which is the number his therapists will care about most.</p>
+      <p class="msg">These numbers stay on this device and clear when you reload the page. His therapists will most likely care about the typical wait, which is how long he takes to answer after the board asks.</p>
     </div>
 
     <div class="group">
@@ -694,13 +693,13 @@
         <div class="top"><span>Rest between</span><span class="val" id="vRest"></span></div>
         <input type="range" id="rRest" min="0" max="8" step="0.5" aria-label="Rest pause between appearances">
       </div>
-      <p class="msg">Longer rests give him time to look away, process, and look back. Start around three seconds.</p>
+      <p class="msg">Longer rests give him time to look away, take it in and look back. About three seconds is a good place to start.</p>
     </div>
 
     <div class="group">
       <p class="label">Sound</p>
 
-      <p class="msg">What answers him</p>
+      <p class="msg">The sound he gets back</p>
       <div class="seg" id="segVoice">
         <button type="button" data-v="kalimba" aria-pressed="true">Kalimba</button>
         <button type="button" data-v="bell" aria-pressed="false">Soft bell</button>
@@ -708,18 +707,18 @@
 
       <button class="toggle" id="tTones" aria-pressed="true">
         <span>Notes when he acts
-          <span class="sub">A note each time the light answers him.</span>
+          <span class="sub">Plays a note each time the light responds to him.</span>
         </span>
         <span class="switch"></span>
       </button>
 
-      <p class="msg">Playing underneath</p>
+      <p class="msg">Background music</p>
       <div class="seg" id="segBed">
         <button type="button" data-b="kalimba" aria-pressed="true">Kalimba</button>
         <button type="button" data-b="chord" aria-pressed="false">Chord</button>
         <button type="button" data-b="off" aria-pressed="false">Nothing</button>
       </div>
-      <p class="msg">The kalimba bed plays a slow phrase every few seconds and then leaves silence, so his own notes still stand out.</p>
+      <p class="msg">The background kalimba plays a few slow notes every so often, then goes quiet so his own notes still stand out.</p>
 
       <div class="row">
         <div class="top"><span>Volume</span><span class="val" id="vVol"></span></div>
@@ -728,19 +727,20 @@
     </div>
 
     <details>
-      <summary>Why it looks this plain</summary>
+      <summary>Why the screen is so plain</summary>
       <p>
-        With cortical visual impairment the eyes usually work; the brain struggles to sort what
-        they send. Clutter, patterned backgrounds, and more than one thing at a time all cost
-        him the image. So this board shows a single saturated target on pure black, moves it
-        slowly, and stops often.
+        With CVI (cortical visual impairment), the brain has a hard time sorting what the eyes
+        send it. Busy backgrounds, patterns and too many things at once make it much harder for
+        him to see anything at all. So the board shows one bright light on pure black, moves it
+        slowly and pauses often.
       </p>
       <p>
-        Hold a session to a few minutes. Looking is tiring. If he stops tracking, that is the
-        end of the session, not a reason to make the light bigger.
+        Keep sessions to a few minutes, since looking takes a lot out of him. When he stops
+        following the light, it’s usually time to end the session, even if it’s tempting to make
+        the light bigger and keep going.
       </p>
       <dl>
-        <dt>Any key</dt><dd>Answers him, for a plug-in switch</dd>
+        <dt>Any key</dt><dd>Same as a touch, for a plug-in switch</dd>
         <dt>1&ndash;9</dt><dd>Change what the light does</dd>
         <dt>M</dt><dd>His sounds on or off</dd>
         <dt>C</dt><dd>His movement on or off</dd>
@@ -759,18 +759,18 @@
   /* ======================= state ======================= */
 
   var MODES = [
-    { id: "beacon", group: "Looking",  name: "Beacon",         why: "One light breathes, then rests. The place to start." },
-    { id: "track",  group: "Looking",  name: "Follow",         why: "The light drifts side to side and waits at each edge. Builds tracking." },
-    { id: "sweep",  group: "Looking",  name: "Sweep",          why: "A bar of light crosses the dark. Finds the edges of his visual field." },
-    { id: "two",    group: "Looking",  name: "Two lights",     why: "A second light joins the first. Builds tolerance for more than one thing at a time." },
+    { id: "beacon", group: "Looking",  name: "Beacon",         why: "One light slowly brightens and fades, then rests. It’s a good place to start." },
+    { id: "track",  group: "Looking",  name: "Follow",         why: "The light drifts side to side and pauses at each edge, to help him practice following it." },
+    { id: "sweep",  group: "Looking",  name: "Sweep",          why: "A bar of light crosses the dark screen, which helps you see how far to each side he can spot it." },
+    { id: "two",    group: "Looking",  name: "Two lights",     why: "A second light joins the first, to get him used to seeing more than one thing at a time." },
 
-    { id: "bloom",  group: "Doing",    name: "Bloom",          why: "Black until he acts. Then a light opens and fades. The clearest cause and effect." },
-    { id: "reach",  group: "Doing",    name: "Reach and hold", why: "The light parks where he can get to it and waits with no time limit. Any contact is a win." },
+    { id: "bloom",  group: "Doing",    name: "Bloom",          why: "The screen stays black until he does something, then a light opens up and fades. It’s the simplest way to show him he made it happen." },
+    { id: "reach",  group: "Doing",    name: "Reach and hold", why: "The light stays where he can reach it and waits as long as it takes. Any touch counts." },
 
-    { id: "call",   group: "Talking",  name: "Call and answer", why: "It plays, then goes quiet and waits for him. His sound gets an answer. Turn taking." },
-    { id: "ready",  group: "Talking",  name: "Ready, set, go",  why: "The same three notes every time, then the light appears in the same spot. Teaches him to look before it arrives." },
+    { id: "call",   group: "Talking",  name: "Call and answer", why: "The board plays a few notes, then goes quiet and waits for him. When he makes a sound, it answers, so he practices taking turns." },
+    { id: "ready",  group: "Talking",  name: "Ready, set, go",  why: "The same three notes play every time before the light shows up in the same spot, so he learns to look for it before it arrives." },
 
-    { id: "calm",   group: "Rest",     name: "Wind down",      why: "Very dim, very slow, sound only. For the end of a session." }
+    { id: "calm",   group: "Rest",     name: "Wind down",      why: "Very dim and slow, mostly sound, for winding down at the end of a session." }
   ];
 
   var COLORS = ["#FF1A1A", "#FFD400", "#FF8A00", "#FFFFFF", "#2BE02B", "#FF3C9E"];
@@ -1111,10 +1111,10 @@
     micBar.style.width = Math.max(0, Math.min(100, (flux / fluxThresh) * 100)) + "%";
 
     if (micWhy) {
-      micWhy.textContent = micHold > 0 ? "that is him"
+      micWhy.textContent = micHold > 0 ? "that’s him"
         : !audible ? "quiet"
-        : !notRumble ? "low rumble, ignoring"
-        : "steady room noise, ignoring";
+        : !notRumble ? "ignoring a low rumble"
+        : "ignoring steady room noise";
     }
 
     if (micHold > 0.06) {
@@ -1138,7 +1138,7 @@
     calibSamples = []; fluxSamples = [];
     calibUntil = performance.now() + 3000;
     micMsg.className = "msg warn";
-    micMsg.textContent = "Measuring the room. Keep everyone quiet for three seconds.";
+    micMsg.textContent = "Measuring the room. Keep everyone quiet for about three seconds.";
     setTimeout(function () {
       if (!calibSamples.length || !fluxSamples.length) return;
       var d = meanSd(calibSamples), f = meanSd(fluxSamples);
@@ -1148,8 +1148,8 @@
       fluxDev = Math.max(0.0004, Math.min(0.05, f[1]));
       calibSamples = []; fluxSamples = [];
       micMsg.className = "msg good";
-      micMsg.textContent = "Set to this room. Steady noise at this level will now be ignored, " +
-        "and it is listening for sounds he starts rather than for loudness.";
+      micMsg.textContent = "Done. It’ll now ignore steady noise at this level " +
+        "and only react to new sounds he makes.";
     }, 3100);
   }
 
@@ -1172,7 +1172,7 @@
       src.connect(analyser);          // analyser only, never routed to the speakers
       S.mic = true; syncUI(); save();
       micMsg.className = "msg good";
-      micMsg.textContent = "Listening. Nothing is recorded or sent anywhere.";
+      micMsg.textContent = "Listening. Nothing gets recorded or sent anywhere.";
       calibrate();                    // learn this room straight away
     }).catch(function () {
       S.mic = false; syncUI(); deviceFail(micMsg, "mic");
@@ -1187,7 +1187,7 @@
     if (micWhy) micWhy.textContent = "";
     S.mic = false; syncUI(); save();
     micMsg.className = "msg";
-    micMsg.textContent = "Off. The microphone only drives the picture. Nothing is recorded or sent.";
+    micMsg.textContent = "Off. The microphone only moves the light. Nothing gets recorded or sent.";
   }
 
   /* ======================= camera motion ======================= */
@@ -1216,7 +1216,7 @@
       camReady = true; prevFrame = null;
       S.cam = true; syncUI(); save();
       camMsg.className = "msg good";
-      camMsg.textContent = "Watching for movement. No picture is saved, shown, or sent.";
+      camMsg.textContent = "Watching for movement. The camera doesn’t save, show or send any picture.";
     }).catch(function () {
       S.cam = false; syncUI(); deviceFail(camMsg, "camera");
     });
@@ -1229,7 +1229,7 @@
     camRun = 0; camFloor = 0.003; camDev = 0.004; camBar.style.width = "0%";
     S.cam = false; syncUI(); save();
     camMsg.className = "msg";
-    camMsg.textContent = "Off. No picture is saved, shown, or sent. Point the camera at him and leave the room lit enough to see him.";
+    camMsg.textContent = "Off. The camera doesn’t save, show or send any picture. Point it at him and keep enough light in the room to see him.";
   }
 
   var camFrame = 0;
@@ -1282,8 +1282,8 @@
 
   function deviceFail(el, what) {
     el.className = "msg warn";
-    el.textContent = "This page cannot reach the " + what + " here. Open it in its own browser tab, " +
-      "or run the local copy, then allow " + what + " access when the browser asks.";
+    el.textContent = "This page can’t use the " + what + " here. Open it in its own browser tab " +
+      "or use the local copy, then tap Allow when the browser asks.";
   }
 
   /* ======================= what the light does when he acts ======================= */
@@ -1653,8 +1653,8 @@
 
   var fieldEl = document.getElementById("field");
   var fieldBtns = [];
-  var LABELS = ["upper left", "upper centre", "upper right", "left", "centre", "right",
-                "lower left", "lower centre", "lower right"];
+  var LABELS = ["upper left", "upper center", "upper right", "left", "center", "right",
+                "lower left", "lower center", "lower right"];
   for (var fr = 0; fr < 3; fr++) {
     for (var fc = 0; fc < 3; fc++) {
       (function (row, col) {
@@ -1810,7 +1810,7 @@
       "Light board session",
       "Length: " + (mins < 1 ? "under a minute" : Math.round(mins) + " minutes"),
       "Mode: " + modeName,
-      "Colour: " + S.color,
+      "Color: " + S.color,
       "Position on screen: " + LABELS[S.frow * 3 + S.fcol],
       "Responses: " + stats.n,
       "Prompts offered: " + stats.prompts,
