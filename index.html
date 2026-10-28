@@ -275,6 +275,9 @@
     cursor: pointer;
   }
   .close:hover { color: var(--warm-hi); border-color: var(--warm); }
+  .head-btns { display: flex; gap: .5rem; }
+  .close.stop { color: #FF8A7A; border-color: #5A2A22; }
+  .close.stop:hover { color: #FFB4A8; border-color: #FF8A7A; }
 
   .panel-body {
     flex: 1;
@@ -568,14 +571,14 @@
       <li>A switch</li>
     </ul>
     <p class="lede">
-      There are nine ways to play in the settings, from a single light slowly breathing in the
-      dark to call and answer, where the board plays a few notes and then waits for him to take
-      his turn.
+      There are 14 ways to play in the settings, from a single light slowly breathing in the
+      dark to a string of shiny beads that swings and clacks when he moves.
     </p>
     <button class="begin" id="begin">Turn the light on</button>
     <p class="gate-note">
       It works best full screen with the room lights low.<br>
-      To open the settings, hold the dot in the bottom-right corner for about a second.
+      To open the settings, hold the dot in the bottom-right corner for about a second.<br>
+      To stop, open the settings and tap Stop.
     </p>
   </div>
 </div>
@@ -583,7 +586,10 @@
 <aside id="panel" aria-label="Caregiver settings" aria-hidden="true">
   <div class="panel-head">
     <h2>Settings</h2>
-    <button class="close" id="close">Done</button>
+    <div class="head-btns">
+      <button class="close stop" id="stop">Stop</button>
+      <button class="close" id="close">Done</button>
+    </div>
   </div>
 
   <div class="panel-body">
@@ -654,6 +660,12 @@
       <p class="label">Color</p>
       <div class="swatches" id="swatches"></div>
       <p class="msg">Red and yellow usually get noticed first. Try a different color if another one holds his attention longer.</p>
+      <button class="toggle" id="tRainbow" aria-pressed="false">
+        <span>Rainbow beads
+          <span class="sub">Gives the bead modes every color at once. Start with one color, and try this once he’s finding a single light easily.</span>
+        </span>
+        <span class="switch"></span>
+      </button>
     </div>
 
     <div class="group">
@@ -746,6 +758,7 @@
         <dt>C</dt><dd>His movement on or off</dd>
         <dt>F</dt><dd>Full screen</dd>
         <dt>Esc</dt><dd>Close this panel</dd>
+        <dt>Stop</dt><dd>Top of this panel, turns everything off</dd>
       </dl>
     </details>
 
@@ -763,9 +776,15 @@
     { id: "track",  group: "Looking",  name: "Follow",         why: "The light drifts side to side and pauses at each edge, to help him practice following it." },
     { id: "sweep",  group: "Looking",  name: "Sweep",          why: "A bar of light crosses the dark screen, which helps you see how far to each side he can spot it." },
     { id: "two",    group: "Looking",  name: "Two lights",     why: "A second light joins the first, to get him used to seeing more than one thing at a time." },
+    { id: "shimmer", group: "Looking", name: "Shimmer",        why: "A light that glitters like tinsel, and sparkles harder when he acts. Shine and movement are often what he’ll notice first." },
+    { id: "bubbles", group: "Looking", name: "Bubble tube",    why: "Colored bubbles rise slowly up a tall tube, like the ones in sensory rooms. A burst of bubbles comes up each time he acts." },
 
     { id: "bloom",  group: "Doing",    name: "Bloom",          why: "The screen stays black until he does something, then a light opens up and fades. It’s the simplest way to show him he made it happen." },
     { id: "reach",  group: "Doing",    name: "Reach and hold", why: "The light stays where he can reach it and waits as long as it takes. Any touch counts." },
+    { id: "music",  group: "Doing",    name: "Keep the music going", why: "A song plays while he keeps making sounds, moving or touching, and pauses when he stops. It picks up where it left off." },
+
+    { id: "beads",  group: "Beads",    name: "Bead string",    why: "A strand of shiny beads hangs on the screen. When he acts, it swings and the beads clack." },
+    { id: "pour",   group: "Beads",    name: "Bead pour",      why: "Each time he acts, a handful of beads drops and rattles into a pile. The pile grows, so you can see how much he’s done." },
 
     { id: "call",   group: "Talking",  name: "Call and answer", why: "The board plays a few notes, then goes quiet and waits for him. When he makes a sound, it answers, so he practices taking turns." },
     { id: "ready",  group: "Talking",  name: "Ready, set, go",  why: "The same three notes play every time before the light shows up in the same spot, so he learns to look for it before it arrives." },
@@ -786,7 +805,8 @@
     hold: true,
     voice: "kalimba", bed: "kalimba",
     tones: true, vol: 55,
-    hud: true
+    hud: true,
+    rainbow: false
   };
 
   var S = load();
@@ -1320,10 +1340,15 @@
 
     // Answering something the board asked earns the full three note reward.
     // A free hit still gets a note, so nothing he does is ever ignored.
-    if (answeredAPrompt || S.mode === "reach") { flourish(); rewardAt = now; }
+    // In Keep the music going the song is the answer, so no extra note on top.
+    if (S.mode === "music") { musicUntil = now + 1800; }
+    else if (answeredAPrompt || S.mode === "reach") { flourish(); rewardAt = now; }
     else play(strength);
 
     if (S.mode === "bloom") bloom = { x: x, y: y, t: now, s: strength };
+    if (S.mode === "beads") { kickStrand(strength); rattle(5, strength); }
+    if (S.mode === "pour") dropBeads(strength);
+    if (S.mode === "bubbles") burstBubbles(strength);
     renderStats();
   }
 
@@ -1420,6 +1445,11 @@
     else if (S.mode === "reach") drawReach(now, t, col, base, bright, e);
     else if (S.mode === "call") drawCall(now, col, base, bright, e);
     else if (S.mode === "ready") drawReady(now, col, base, bright, e);
+    else if (S.mode === "shimmer") drawShimmer(t, col, base, bright, e);
+    else if (S.mode === "bubbles") drawBubbles(now, col, base, bright, sp, e);
+    else if (S.mode === "music") drawMusic(now, col, base, bright, e);
+    else if (S.mode === "beads") drawStrand(t, col, base, bright, sp);
+    else if (S.mode === "pour") drawPour(now, col, base, bright);
     else drawCalm(t, col, base, bright, e);
   }
 
@@ -1618,6 +1648,252 @@
     orb(W / 2, H / 2, base * (1.0 + 0.16 * env + 0.2 * e), col, bright * 0.34 * (0.6 + 0.4 * env) + e * 0.12);
   }
 
+  /* ======================= shine, bubbles, music, beads ======================= */
+
+  var RAINBOW = ["#FF1A1A", "#FF8A00", "#FFD400", "#2BE02B", "#2E9BFF", "#FF3C9E"];
+  function beadColor(i) { return S.rainbow ? rgb(RAINBOW[i % RAINBOW.length]) : rgb(S.color); }
+  function toward(c, k, amt) { return [c[0] + (k - c[0]) * amt, c[1] + (k - c[1]) * amt, c[2] + (k - c[2]) * amt]; }
+
+  // A glossy bead: lit from the upper left, dark at the far edge, one hard highlight.
+  // The highlight is what makes it read as a solid object rather than a flat dot.
+  function bead(x, y, r, c, a) {
+    var g = cx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x, y, r);
+    g.addColorStop(0, rgba(toward(c, 255, 0.6), a));
+    g.addColorStop(0.35, rgba(c, a));
+    g.addColorStop(1, rgba(toward(c, 0, 0.55), a));
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = "rgba(255,255,255," + (0.85 * a) + ")";
+    cx.beginPath(); cx.arc(x - r * 0.38, y - r * 0.42, r * 0.16, 0, Math.PI * 2); cx.fill();
+  }
+
+  // Bead clatter: short bright clicks scattered over a moment, like a handful landing.
+  function click(vel, when) {
+    if (!AC) return;
+    var t = when || AC.currentTime;
+    var n = AC.createBufferSource();
+    var nb = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.03), AC.sampleRate);
+    var d = nb.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 8);
+    n.buffer = nb;
+    var bp = AC.createBiquadFilter();
+    bp.type = "bandpass"; bp.frequency.value = 2400 + Math.random() * 2600; bp.Q.value = 5;
+    var g = AC.createGain(); g.gain.value = 0.5 * vel;
+    n.connect(bp); bp.connect(g); g.connect(bus);
+    n.start(t);
+  }
+  function rattle(count, vel) {
+    if (!AC) return;
+    var t = AC.currentTime;
+    for (var i = 0; i < count; i++) click(vel * (0.5 + Math.random() * 0.5), t + Math.random() * 0.28);
+  }
+
+  /* --- shimmer: fixed glints that flash at their own pace, like light on tinsel --- */
+  var glints = [];
+  for (var gi = 0; gi < 70; gi++) {
+    glints.push({ a: Math.random() * Math.PI * 2, d: Math.sqrt(Math.random()),
+                  ph: Math.random() * 6.28, sp: 1.5 + Math.random() * 3.5, s: 0.5 + Math.random() * 0.8 });
+  }
+  function drawShimmer(t, col, base, bright, e) {
+    var x = fieldX(), y = fieldY();
+    var spread = base * (1 + 0.45 * e);
+    orb(x, y, base * 0.55, col, bright * (0.3 + 0.2 * e));
+    var glow = toward(col, 255, 0.55);
+    var turn = t * 0.12;
+    for (var i = 0; i < glints.length; i++) {
+      var q = glints[i];
+      var tw = Math.pow(Math.max(0, Math.sin(t * q.sp * (1 + e) + q.ph)), 6);
+      var a = bright * (0.12 + 0.88 * tw) * (0.7 + 0.3 * e);
+      var gx = x + Math.cos(q.a + turn) * q.d * spread;
+      var gy = y + Math.sin(q.a + turn) * q.d * spread;
+      var r = base * 0.05 * q.s * (0.8 + 0.6 * tw);
+      cx.fillStyle = rgba(tw > 0.6 ? glow : col, a);
+      cx.beginPath(); cx.arc(gx, gy, r, 0, Math.PI * 2); cx.fill();
+    }
+  }
+
+  /* --- bubble tube --- */
+  var bubbles = [], nextBubble = 0, lastBubbleT = 0;
+  function tubeGeom(base) {
+    return { x: fieldX(), w: Math.max(40, base * 0.9), top: H * 0.1, bot: H * 0.92 };
+  }
+  function addBubble(g, big) {
+    bubbles.push({ y: g.bot - 10, ox: (Math.random() - 0.5) * g.w * 0.5,
+                   r: g.w * (big ? 0.12 + Math.random() * 0.12 : 0.07 + Math.random() * 0.1),
+                   v: 0.6 + Math.random() * 0.5, ph: Math.random() * 6.28, c: Math.floor(Math.random() * 6) });
+    if (bubbles.length > 70) bubbles.shift();
+  }
+  function burstBubbles(strength) {
+    var g = tubeGeom(Math.min(W, H) * (S.size / 100));
+    for (var i = 0; i < 4 + Math.round(5 * strength); i++) addBubble(g, true);
+  }
+  function drawBubbles(now, col, base, bright, sp, e) {
+    var g = tubeGeom(base);
+    var dt = Math.min(0.05, (now - (lastBubbleT || now)) / 1000);
+    lastBubbleT = now;
+    if (now > nextBubble) { addBubble(g, false); nextBubble = now + 900 / Math.max(0.3, sp); }
+
+    // the tube itself, faint, so the bubbles have somewhere to live
+    cx.fillStyle = rgba(col, 0.07 * bright);
+    cx.fillRect(g.x - g.w / 2, g.top, g.w, g.bot - g.top);
+    cx.strokeStyle = rgba(col, 0.22 * bright);
+    cx.lineWidth = 2;
+    cx.strokeRect(g.x - g.w / 2, g.top, g.w, g.bot - g.top);
+
+    var rise = (g.bot - g.top) / 7 * sp;
+    for (var i = bubbles.length - 1; i >= 0; i--) {
+      var b = bubbles[i];
+      b.y -= rise * b.v * dt * (1 + 0.6 * e);
+      if (b.y < g.top + b.r) { bubbles.splice(i, 1); continue; }
+      var bx = g.x + b.ox + Math.sin(now / 600 + b.ph) * g.w * 0.08;
+      var c = S.rainbow ? rgb(RAINBOW[b.c]) : col;
+      cx.fillStyle = rgba(c, 0.35 * bright);
+      cx.beginPath(); cx.arc(bx, b.y, b.r, 0, Math.PI * 2); cx.fill();
+      cx.strokeStyle = rgba(toward(c, 255, 0.4), 0.9 * bright);
+      cx.lineWidth = Math.max(1.5, b.r * 0.12);
+      cx.stroke();
+      cx.fillStyle = "rgba(255,255,255," + (0.7 * bright) + ")";
+      cx.beginPath(); cx.arc(bx - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.18, 0, Math.PI * 2); cx.fill();
+    }
+  }
+
+  /* --- keep the music going: a simple lullaby that only moves while he does --- */
+  // Indexes into SCALE, with 0 as a held beat. Pentatonic, so it can stop on any note.
+  var TUNE = [4, 4, 5, 4, 3, 0, 2, 3, 4, 0, 3, 2, 1, 0, 2, 0,
+              4, 4, 5, 6, 5, 0, 4, 3, 2, 0, 3, 2, 1, 2, 0, 0];
+  var tuneAt = 0, nextBeat = 0, beatFlash = -9e9, musicUntil = 0;
+  function musicActive(now) {
+    return now < musicUntil || holding || micHot || camHot;
+  }
+  function drawMusic(now, col, base, bright, e) {
+    var on = musicActive(now);
+    if (on && now >= nextBeat && AC) {
+      var n = TUNE[tuneAt % TUNE.length];
+      if (n) { pluck(SCALE[n - 1], 0.6); beatFlash = now; }
+      if (tuneAt % 8 === 0) pluck(SCALE[0] / 2, 0.35);
+      tuneAt++;
+      nextBeat = now + 430;
+    }
+    var flash = Math.max(0, 1 - (now - beatFlash) / 380);
+    var a = on ? bright * (0.65 + 0.35 * flash) : bright * 0.12;
+    orb(fieldX(), fieldY(), base * (0.85 + 0.25 * flash + 0.15 * e), col, a);
+  }
+
+  /* --- bead string: a hanging strand with real swing --- */
+  var strand = null, strandKey = "";
+  function buildStrand(base) {
+    var r = Math.max(10, base * 0.13);
+    var L = r * 2.1;
+    var n = Math.max(5, Math.min(18, Math.round(H * 0.62 / L)));
+    var ax = fieldX(), ay = H * 0.1;
+    var pts = [];
+    for (var i = 0; i <= n; i++) pts.push({ x: ax, y: ay + i * L, px: ax, py: ay + i * L });
+    strand = { pts: pts, r: r, L: L };
+  }
+  function kickStrand(strength) {
+    if (!strand) return;
+    var dir = Math.random() < 0.5 ? -1 : 1;
+    for (var i = 1; i < strand.pts.length; i++) {
+      var p = strand.pts[i];
+      var k = (i / strand.pts.length) * strand.L * 0.9 * strength;
+      p.px -= dir * k * (0.7 + Math.random() * 0.6);
+      p.py += (Math.random() - 0.5) * k * 0.3;
+    }
+  }
+  function drawStrand(t, col, base, bright, sp) {
+    var key = W + "x" + H + ":" + S.size + ":" + S.fcol;
+    if (!strand || key !== strandKey) { buildStrand(base); strandKey = key; }
+    var pts = strand.pts, L = strand.L;
+
+    // a slow idle sway at the top, so there's always a little movement to catch
+    pts[0].x = fieldX() + Math.sin(t * 0.7 * sp) * W * 0.006;
+    pts[0].y = H * 0.1;
+    if (holding && Math.random() < 0.08) kickStrand(0.35);
+
+    var grav = H * 0.0006;
+    for (var i = 1; i < pts.length; i++) {
+      var p = pts[i];
+      var vx = (p.x - p.px) * 0.985, vy = (p.y - p.py) * 0.985;
+      p.px = p.x; p.py = p.y;
+      p.x += vx; p.y += vy + grav;
+    }
+    for (var it = 0; it < 8; it++) {
+      for (var j = 1; j < pts.length; j++) {
+        var a = pts[j - 1], b = pts[j];
+        var dx = b.x - a.x, dy = b.y - a.y;
+        var d = Math.sqrt(dx * dx + dy * dy) || 1;
+        var diff = (d - L) / d;
+        if (j === 1) { b.x -= dx * diff; b.y -= dy * diff; }
+        else { a.x += dx * diff * 0.5; a.y += dy * diff * 0.5; b.x -= dx * diff * 0.5; b.y -= dy * diff * 0.5; }
+      }
+    }
+
+    cx.strokeStyle = "rgba(232,225,214," + (0.3 * bright) + ")";
+    cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(pts[0].x, pts[0].y);
+    for (var k = 1; k < pts.length; k++) cx.lineTo(pts[k].x, pts[k].y);
+    cx.stroke();
+    for (var m = 1; m < pts.length; m++) bead(pts[m].x, pts[m].y, strand.r, beadColor(m), bright);
+  }
+
+  /* --- bead pour: beads drop, bounce and pile up --- */
+  var poured = [], lastPourT = 0, clickBudget = 0;
+  function dropBeads(strength) {
+    var base = Math.min(W, H) * (S.size / 100);
+    var r = Math.max(7, base * 0.075);
+    var n = 4 + Math.round(4 * strength);
+    for (var i = 0; i < n; i++) {
+      poured.push({ x: fieldX() + (Math.random() - 0.5) * r * 6, y: -r * (1 + Math.random() * 6),
+                    vx: (Math.random() - 0.5) * 60, vy: 0, r: r * (0.9 + Math.random() * 0.2),
+                    c: Math.floor(Math.random() * 6) });
+    }
+    while (poured.length > 240) poured.shift();
+    rattle(3, strength * 0.6);
+  }
+  function drawPour(now, col, base, bright) {
+    var dt = Math.min(0.033, (now - (lastPourT || now)) / 1000);
+    lastPourT = now;
+    clickBudget = Math.min(6, clickBudget + dt * 20);
+    var floor = H * 0.94, g = H * 2.2;
+    var i, j, a, b;
+    for (i = 0; i < poured.length; i++) {
+      a = poured[i];
+      a.vy += g * dt;
+      a.vx *= 0.93;                       // grip, so they heap instead of rolling away
+      a.x += a.vx * dt; a.y += a.vy * dt;
+      if (a.y > floor - a.r) {
+        if (a.vy > H * 0.35 && clickBudget >= 1) { clickBudget--; click(Math.min(1, a.vy / H) * 0.7); }
+        a.y = floor - a.r; a.vy *= -0.3; a.vx *= 0.8;
+      }
+      if (a.x < a.r) { a.x = a.r; a.vx *= -0.5; }
+      if (a.x > W - a.r) { a.x = W - a.r; a.vx *= -0.5; }
+    }
+    // let them rest on each other so a pile actually forms
+    for (var it = 0; it < 2; it++) {
+      for (i = 0; i < poured.length; i++) {
+        a = poured[i];
+        for (j = i + 1; j < poured.length; j++) {
+          b = poured[j];
+          var dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r;
+          if (dx > rr || dx < -rr || dy > rr || dy < -rr) continue;
+          var d2 = dx * dx + dy * dy;
+          if (d2 >= rr * rr || d2 === 0) continue;
+          var d = Math.sqrt(d2), push = (rr - d) / 2, nx = dx / d, ny = dy / d;
+          a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+          var rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+          if (rel < 0) {
+            var imp = rel * 0.6;
+            a.vx += imp * nx; a.vy += imp * ny; b.vx -= imp * nx; b.vy -= imp * ny;
+          }
+        }
+      }
+    }
+    for (i = 0; i < poured.length; i++) {
+      a = poured[i];
+      bead(a.x, a.y, a.r, S.rainbow ? rgb(RAINBOW[a.c]) : col, bright);
+    }
+  }
+
   function lerp(a, b, u) { return a + (b - a) * u; }
   function ease(u) { return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
 
@@ -1643,7 +1919,7 @@
     var b = document.createElement("button");
     b.className = "mode"; b.type = "button"; b.dataset.mode = m.id;
     b.setAttribute("aria-pressed", "false");
-    b.innerHTML = '<span class="name"></span><span class="key">' + (i + 1) + '</span><span class="why"></span>';
+    b.innerHTML = '<span class="name"></span><span class="key">' + (i < 9 ? i + 1 : "") + '</span><span class="why"></span>';
     b.querySelector(".name").textContent = m.name;
     b.querySelector(".why").textContent = m.why;
     b.addEventListener("click", function () { setMode(m.id); });
@@ -1692,6 +1968,7 @@
     seq = { name: "", t0: 0 };
     closePrompt();
     rewardAt = -9e9;
+    strand = null; poured = []; bubbles = []; musicUntil = 0;
     syncUI(); save();
   }
 
@@ -1727,6 +2004,24 @@
   document.getElementById("calib").addEventListener("click", function () {
     if (!S.mic) { micMsg.className = "msg warn"; micMsg.textContent = "Turn his sounds on first."; return; }
     calibrate();
+  });
+
+  document.getElementById("tRainbow").addEventListener("click", function () {
+    S.rainbow = !S.rainbow; syncUI(); save();
+  });
+
+  // Stop turns everything off and goes back to the start screen.
+  document.getElementById("stop").addEventListener("click", function () {
+    if (S.mic) micOff();
+    if (S.cam) camOff();
+    closePanel();
+    holding = false; energy = 0; musicUntil = 0;
+    strand = null; poured = []; bubbles = [];
+    if (AC && AC.state === "running") AC.suspend();
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+    gateUp = true;
+    gate.style.display = "";
+    gate.classList.remove("out");
   });
 
   document.getElementById("tHold").addEventListener("click", function () {
@@ -1878,6 +2173,7 @@
     document.getElementById("tHud").setAttribute("aria-pressed", String(S.hud));
     document.getElementById("tHold").setAttribute("aria-pressed", String(S.hold));
     document.getElementById("tTones").setAttribute("aria-pressed", String(S.tones));
+    document.getElementById("tRainbow").setAttribute("aria-pressed", String(S.rainbow));
   }
 
   function openPanel() {
@@ -1915,6 +2211,7 @@
   var gate = document.getElementById("gate");
   document.getElementById("begin").addEventListener("click", function () {
     audioStart();
+    if (AC && AC.state === "suspended") AC.resume();
     play(0.7);
     gate.classList.add("out");
     setTimeout(function () {
